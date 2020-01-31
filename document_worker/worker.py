@@ -30,7 +30,7 @@ class DocumentState:
 
 
 class DocumentField:
-    UUID = 'documentUuid'
+    UUID = 'uuid'
     STATE = 'state'
     TEMPLATE = 'templateUuid'
     FORMAT = 'format'
