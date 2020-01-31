@@ -1,0 +1,9 @@
+version: '3'
+services:
+  docworker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - './examples/templates:/app/templates:ro'
+      - './config.cfg:/app/config.cfg:ro'

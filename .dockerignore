@@ -1,0 +1,9 @@
+.idea
+.vscode
+*.egg-info
+env
+examples
+.gitignore
+docker-compose.yml
+Dockerfile
+LICENSE
