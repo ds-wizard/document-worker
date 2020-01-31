@@ -21,7 +21,7 @@ class WkHtmlToPdf:
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate(input=data.encode(DEFAULT_ENCODING))
+        stdout, stderr = p.communicate(input=data)
         return stdout
 
 

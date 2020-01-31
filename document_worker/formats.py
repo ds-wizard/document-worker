@@ -38,7 +38,8 @@ class Formats:
             'markdown': Formats.Markdown,
             'odt': Formats.ODT,
             'rst': Formats.RST,
-            'latex': Formats.LaTeX
+            'latex': Formats.LaTeX,
+            'json': Formats.JSON
         }
         return known_formats.get(name, None)
 
