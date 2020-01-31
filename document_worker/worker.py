@@ -168,7 +168,7 @@ class Job:
 
         file_id = self.mongo_fs.put(
             self.final_file.content,
-            name=document_uuid
+            filename=document_uuid
         )
         logging.info(f'File {document_uuid} stored with id {file_id}')
 
