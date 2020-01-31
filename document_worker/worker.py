@@ -224,7 +224,7 @@ class DocumentWorker:
         channel = mq.channel()
         channel.basic_qos(prefetch_count=1)
         logging.info(f'Waiting for messages in queue "{queue}"')
-        channel.queue_declare(queue=queue)
+        channel.queue_declare(queue=queue, durable=True)
 
         channel.basic_consume(queue=queue, on_message_callback=self._callback, auto_ack=False)
         channel.start_consuming()
