@@ -144,9 +144,10 @@ class Job:
         self.target_format = Formats.get(target_format_name)
         if self.target_format is None:
             self._raise_exc(f'Unknown target format {target_format_name}')
-        source_format = self.document_builder.template_registry[template_uuid].output_format
-        if not self.document_builder.format_convertor.can_convert(source_format, self.target_format):
-            self._raise_exc(f'Cannot convert {source_format} to {target_format_name}')
+        if self.target_format != Formats.JSON:
+            source_format = self.document_builder.template_registry[template_uuid].output_format
+            if not self.document_builder.format_convertor.can_convert(source_format, self.target_format):
+                self._raise_exc(f'Cannot convert {source_format} to {target_format_name}')
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
