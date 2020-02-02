@@ -217,10 +217,10 @@ class DocumentWorker:
 
     def run(self):
         # TODO: retry
-        queue = self.config.mqueue.queue
-        logging.info(f'Connecting to MQ @ {self.config.mqueue.host}:{self.config.mqueue.port}')
+        queue = self.config.mq.queue
+        logging.info(f'Connecting to MQ @ {self.config.mq.host}:{self.config.mq.port}/{self.config.mq.vhost}')
         mq = pika.BlockingConnection(
-            parameters=self.config.mqueue.connection_parameters
+            parameters=self.config.mq.connection_parameters
         )
         channel = mq.channel()
         channel.basic_qos(prefetch_count=1)

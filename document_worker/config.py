@@ -45,9 +45,10 @@ class MongoConfig:
 
 class MQueueConfig:
 
-    def __init__(self, host: str, port: int, username: str, password: str, queue: str):
+    def __init__(self, host: str, port: int, vhost: str, username: str, password: str, queue: str):
         self.host = host
         self.port = port
+        self.vhost = vhost
         self.username = username
         self.password = password
         self.queue = queue
@@ -61,6 +62,7 @@ class MQueueConfig:
         conn_params = pika.ConnectionParameters(
             host=self.host,
             port=self.port,
+            virtual_host=self.vhost
         )
         if self.auth_enabled:
             conn_params.credentials = pika.credentials.PlainCredentials(
@@ -79,8 +81,12 @@ class LoggingConfig:
 
 class DocumentWorkerConfig(configparser.ConfigParser):
 
+    MONGO_SECTION = 'mongo'
+    MQ_SECTION = 'mq'
+    LOGGING_SECTION = 'logging'
+
     DEFAULTS = {
-        'mongo': {
+        MONGO_SECTION: {
             'host': 'localhost',
             'port': 27017,
             'username': None,
@@ -89,21 +95,22 @@ class DocumentWorkerConfig(configparser.ConfigParser):
             'auth_database': None,
             'auth_mechanism': 'SCRAM-SHA-256'
         },
-        'mq': {
+        MQ_SECTION: {
             'host': 'localhost',
             'port': 5672,
+            'vhost': '/',
             'username': None,
             'password': None,
         },
-        'logging': {
+        LOGGING_SECTION: {
             'level': logging.WARNING,
             'format': '%(asctime)s | %(levelname)s | %(module)s: %(message)s',
         }
     }
 
     REQUIRED = {
-        'mongo': ['database', 'collection'],
-        'mq': ['queue'],
+        MONGO_SECTION: ['database', 'collection'],
+        MQ_SECTION: ['queue'],
     }
 
     def __init__(self):
@@ -134,30 +141,31 @@ class DocumentWorkerConfig(configparser.ConfigParser):
     @property
     def mongo(self) -> MongoConfig:
         return MongoConfig(
-            self.get_or_default('mongo', 'host'),
-            self.getint_or_default('mongo', 'port'),
-            self.get_or_default('mongo', 'username'),
-            self.get_or_default('mongo', 'password'),
-            self.get_or_default('mongo', 'database'),
-            self.get_or_default('mongo', 'collection'),
-            self.get_or_default('mongo', 'fs_collection'),
-            self.get_or_default('mongo', 'auth_database'),
-            self.get_or_default('mongo', 'auth_mechanism')
+            self.get_or_default(self.MONGO_SECTION, 'host'),
+            self.getint_or_default(self.MONGO_SECTION, 'port'),
+            self.get_or_default(self.MONGO_SECTION, 'username'),
+            self.get_or_default(self.MONGO_SECTION, 'password'),
+            self.get_or_default(self.MONGO_SECTION, 'database'),
+            self.get_or_default(self.MONGO_SECTION, 'collection'),
+            self.get_or_default(self.MONGO_SECTION, 'fs_collection'),
+            self.get_or_default(self.MONGO_SECTION, 'auth_database'),
+            self.get_or_default(self.MONGO_SECTION, 'auth_mechanism'),
         )
 
     @property
-    def mqueue(self) -> MQueueConfig:
+    def mq(self) -> MQueueConfig:
         return MQueueConfig(
-            self.get_or_default('mq', 'host'),
-            self.getint_or_default('mq', 'port'),
-            self.get_or_default('mq', 'username'),
-            self.get_or_default('mq', 'password'),
-            self.get_or_default('mq', 'queue'),
+            self.get_or_default(self.MQ_SECTION, 'host'),
+            self.getint_or_default(self.MQ_SECTION, 'port'),
+            self.get_or_default(self.MQ_SECTION, 'vhost'),
+            self.get_or_default(self.MQ_SECTION, 'username'),
+            self.get_or_default(self.MQ_SECTION, 'password'),
+            self.get_or_default(self.MQ_SECTION, 'queue'),
         )
 
     @property
     def logging(self) -> LoggingConfig:
         return LoggingConfig(
-            self.getint_or_default('logging', 'level'),
-            self.get_or_default('logging', 'format'),
+            self.getint_or_default(self.LOGGING_SECTION, 'level'),
+            self.get_or_default(self.LOGGING_SECTION, 'format'),
         )
