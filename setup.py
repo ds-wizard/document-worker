@@ -28,6 +28,7 @@ setup(
         'pika',
         'pymongo',
         'jinja2',
+        'markdown2',
     ],
     entry_points={
         'console_scripts': [

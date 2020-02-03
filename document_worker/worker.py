@@ -156,6 +156,8 @@ class Job:
         self.final_file = self.document_builder.build_document(
             template_uuid, self.doc_context, self.target_format
         )
+        with open("test.html", mode="w") as f:
+            f.write(self.final_file.content.decode("utf-8"))
 
     @handle_job_step('Failed to store document in GridFS')
     def store_document(self):

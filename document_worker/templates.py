@@ -42,8 +42,10 @@ class Template:
         self.root_filename = os.path.basename(self.metadata[TemplateMetaField.ROOT_FILE])
         logging.info(f'Setting up Jinja2 env for "{self.name}" ({self.uuid})')
         self.j2_env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(os.path.dirname(self.root_file))
+            loader=jinja2.FileSystemLoader(os.path.dirname(self.root_file)),
+            extensions=['jinja2.ext.do'],
         )
+        self._add_filters()
         self.j2_root_template = self.j2_env.get_template(self.root_filename)
 
     def _raise_exc(self, message: str):
@@ -79,6 +81,10 @@ class Template:
 
     def render(self, context: dict) -> str:
         return self.j2_root_template.render(ctx=context)
+
+    def _add_filters(self):
+        import document_worker.filters
+        self.j2_env.filters.update(document_worker.filters.filters)
 
 
 class TemplateRegistry:
