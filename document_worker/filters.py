@@ -4,7 +4,8 @@ import markdown2
 
 
 def datetime_format(iso_timestamp: str, fmt: str):
-    return datetime.datetime.strptime(iso_timestamp, '%Y-%m-%dT%H:%M:%S.%fZ').strftime(fmt)
+    timestamp_stripped = iso_timestamp.split('.')[0]
+    return datetime.datetime.strptime(timestamp_stripped, '%Y-%m-%dT%H:%M:%S').strftime(fmt)
 
 
 def extract(obj, keys):
