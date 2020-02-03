@@ -45,7 +45,7 @@ class Template:
             loader=jinja2.FileSystemLoader(os.path.dirname(self.root_file)),
             extensions=['jinja2.ext.do'],
         )
-        self._add_filters()
+        self._add_j2_enhancements()
         self.j2_root_template = self.j2_env.get_template(self.root_filename)
 
     def _raise_exc(self, message: str):
@@ -82,12 +82,15 @@ class Template:
     def render(self, context: dict) -> str:
         return self.j2_root_template.render(ctx=context)
 
-    def _add_filters(self):
-        import document_worker.filters
-        self.j2_env.filters.update(document_worker.filters.filters)
+    def _add_j2_enhancements(self):
+        from document_worker.templates.filters import filters
+        from document_worker.templates.tests import tests
+        self.j2_env.filters.update(filters)
+        self.j2_env.tests.update(tests)
 
 
 class TemplateRegistry:
+    # TODO: make it fail if same uuids
 
     META_EXT = '.json'
 

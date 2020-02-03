@@ -2,6 +2,11 @@ import datetime
 import jinja2
 import markdown2
 
+_alphabet = [chr(x) for x in range(ord('a'), ord('z')+1)]
+_alphabet_size = len(_alphabet)
+_romans = [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, 'XC'),
+           (50, 'L'), (40, 'XL'), (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]
+
 
 def datetime_format(iso_timestamp: str, fmt: str):
     if iso_timestamp is None:
@@ -15,11 +20,13 @@ def extract(obj, keys):
 
 
 def of_alphabet(n: int):
-    return chr(n + ord('a') - 1)  # TODO: ..., y, z, aa, ab, ...
-
-
-_romans = [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, 'XC'),
-           (50, 'L'), (40, 'XL'), (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]
+    result = ''
+    while n >= 0:
+        n, m = divmod(n, _alphabet_size)
+        result = result + _alphabet[m]
+        if n == 0:
+            break
+    return result
 
 
 def roman(n: int) -> str:
