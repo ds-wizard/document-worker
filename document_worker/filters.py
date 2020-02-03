@@ -4,6 +4,8 @@ import markdown2
 
 
 def datetime_format(iso_timestamp: str, fmt: str):
+    if iso_timestamp is None:
+        return ''
     timestamp_stripped = iso_timestamp.split('.')[0]
     return datetime.datetime.strptime(timestamp_stripped, '%Y-%m-%dT%H:%M:%S').strftime(fmt)
 
@@ -31,6 +33,8 @@ def roman(n: int) -> str:
 
 
 def markdown(md_text: str):
+    if md_text is None:
+        return ''
     return jinja2.Markup(markdown2.markdown(md_text))
 
 
