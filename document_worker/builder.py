@@ -50,7 +50,7 @@ class DocumentBuilder:
             raise DocumentBuilderException(f'Cannot convert from {source_format} to {target_format}')
         try:
             # TODO: consider retry
-            base_doc = template.render(context).encode(DEFAULT_ENCODING)
+            base_doc = template.render(context).encode(encoding=DEFAULT_ENCODING, errors='ignore')
         except Exception as e:
             raise DocumentBuilderException(f'Failed to render document: {e}')
         try:
