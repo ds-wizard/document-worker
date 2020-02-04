@@ -53,8 +53,10 @@ def handle_job_step(message):
             try:
                 return func(job, *args, **kwargs)
             except JobException as e:
+                logging.debug('Handling job exception', exc_info=True)
                 raise e
             except Exception as e:
+                logging.debug('Handling exception', exc_info=True)
                 job._raise_exc(f'{message}: [{type(e).__name__}] {e}')
         return handled_step
     return decorator
@@ -156,8 +158,6 @@ class Job:
         self.final_file = self.document_builder.build_document(
             template_uuid, self.doc_context, self.target_format
         )
-        with open("test.html", mode="w") as f:
-            f.write(self.final_file.content.decode("utf-8"))
 
     @handle_job_step('Failed to store document in GridFS')
     def store_document(self):
@@ -216,6 +216,7 @@ class DocumentWorker:
             level=self.config.logging.level,
             format=self.config.logging.message_format
         )
+        return logging.getLogger('docworker')
 
     def run(self):
         # TODO: retry

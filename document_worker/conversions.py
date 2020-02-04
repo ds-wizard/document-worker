@@ -1,10 +1,37 @@
 import itertools
+import logging
 import subprocess
 
 from document_worker.formats import Format, Formats
 
 # TODO: unify encoding across modules
 DEFAULT_ENCODING = 'utf-8'
+EXIT_SUCCESS = 0
+
+
+def run_conversion(args: list, input: bytes, name: str,
+                   source_format: Format, target_format: Format) -> bytes:
+    p = subprocess.Popen(args,
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate(input=input)
+    exit_code = p.returncode
+    if exit_code != EXIT_SUCCESS:
+        raise FormatConversionException(
+            name, source_format, target_format,
+            f'Failed to execute (exit code: {exit_code}): {stderr.decode(DEFAULT_ENCODING)}'
+        )
+    return stdout
+
+
+class FormatConversionException(Exception):
+
+    def __init__(self, convertor, source_format, target_format, message):
+        self.convertor = convertor
+        self.source_format = source_format
+        self.target_format = target_format
+        self.message = message
 
 
 class WkHtmlToPdf:
@@ -14,15 +41,13 @@ class WkHtmlToPdf:
     TARGET_FORMATS = [Formats.PDF]
 
     def __call__(self, source_format: Format, target_format: Format,
-                data: str, metadata: dict) -> bytes:
+                data: bytes, metadata: dict) -> bytes:
         # TODO: detect and handle fails
-        p = subprocess.Popen(['wkhtmltopdf',
-                              '--quiet', '--encoding', DEFAULT_ENCODING, '-', '-'],
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate(input=data)
-        return stdout
+        logging.info(f'Calling wkhtmltopdf to convert from {source_format} to {target_format}')
+        return run_conversion(
+            ['wkhtmltopdf', '--quiet', '--encoding', DEFAULT_ENCODING, '-', '-'],
+            data, type(self).__name__, source_format, target_format
+        )
 
 
 class Pandoc:
@@ -35,13 +60,11 @@ class Pandoc:
     def __call__(self, source_format: Format, target_format: Format,
                 data: bytes, metadata: dict) -> bytes:
         # TODO: detect and handle fails
-        p = subprocess.Popen(['pandoc', '-s', '-f', 'html', '-t',
-                              target_format.name, '-o', '-'],
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        stdout, stderr = p.communicate(input=data)
-        return stdout
+        logging.info(f'Calling pandoc to convert from {source_format} to {target_format}')
+        return run_conversion(
+            ['pandoc', '-s', '-f', 'html', '-t', target_format.name, '-o', '-'],
+            data, type(self).__name__, source_format, target_format
+        )
 
 
 class FormatConvertor:

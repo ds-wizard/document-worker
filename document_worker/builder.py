@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 
 from document_worker.conversions import FormatConvertor
@@ -52,10 +53,12 @@ class DocumentBuilder:
             # TODO: consider retry
             base_doc = template.render(context).encode(encoding=DEFAULT_ENCODING, errors='ignore')
         except Exception as e:
+            logging.debug('Handling exception when rendering template', exc_info=True)
             raise DocumentBuilderException(f'Failed to render document: {e}')
         try:
             # TODO: consider retry
             final_doc = self.format_convertor.convert(source_format, target_format, base_doc, template.metadata)
         except Exception as e:
+            logging.debug('Handling exception when converting document', exc_info=True)
             raise DocumentBuilderException(f'Failed to convert document: {e}')
         return DocumentFile(target_format, final_doc)
