@@ -1,8 +1,10 @@
 import itertools
 import logging
+import shlex
 import subprocess
 
 from document_worker.formats import Format, Formats
+from document_worker.config import DocumentWorkerConfig
 
 # TODO: unify encoding across modules
 DEFAULT_ENCODING = 'utf-8'
@@ -11,6 +13,8 @@ EXIT_SUCCESS = 0
 
 def run_conversion(args: list, input: bytes, name: str,
                    source_format: Format, target_format: Format) -> bytes:
+    command = ' '.join(args)
+    logging.info(f'Calling "{command}" to convert from {source_format} to {target_format}')
     p = subprocess.Popen(args,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
@@ -35,46 +39,58 @@ class FormatConversionException(Exception):
 
 
 class WkHtmlToPdf:
-    # TODO: config
 
     SOURCE_FORMATS = [Formats.HTML]
     TARGET_FORMATS = [Formats.PDF]
 
+    ARGS1 = ['--quiet']
+    ARGS2 = ['--encoding', DEFAULT_ENCODING, '-', '-']
+
+    def __init__(self, config: DocumentWorkerConfig = None):
+        self.config = config
+
     def __call__(self, source_format: Format, target_format: Format,
                 data: bytes, metadata: dict) -> bytes:
-        # TODO: detect and handle fails
-        logging.info(f'Calling wkhtmltopdf to convert from {source_format} to {target_format}')
+        template_args = self.extract_template_args(metadata)
+        command = self.config.wkhtmltopdf.command + self.ARGS1 + template_args + self.ARGS2
         return run_conversion(
-            ['wkhtmltopdf', '--quiet', '--encoding', DEFAULT_ENCODING, '-', '-'],
-            data, type(self).__name__, source_format, target_format
+            command, data, type(self).__name__, source_format, target_format
         )
+
+    def extract_template_args(self, metadata: dict):
+        return shlex.split(metadata.get('wkhtmltopdf', ''))
 
 
 class Pandoc:
-    # TODO: config
 
     SOURCE_FORMATS = [Formats.HTML]
     TARGET_FORMATS = [Formats.LaTeX, Formats.RST, Formats.ODT,
                       Formats.DOCX, Formats.Markdown]
 
+    def __init__(self, config: DocumentWorkerConfig = None):
+        self.config = config
+
     def __call__(self, source_format: Format, target_format: Format,
                 data: bytes, metadata: dict) -> bytes:
-        # TODO: detect and handle fails
-        logging.info(f'Calling pandoc to convert from {source_format} to {target_format}')
+        args = ['-f', 'html', '-t', target_format.name, '-o', '-']
+        template_args = self.extract_template_args(metadata)
+        command = self.config.pandoc.command + template_args + args
         return run_conversion(
-            ['pandoc', '-s', '-f', 'html', '-t', target_format.name, '-o', '-'],
-            data, type(self).__name__, source_format, target_format
+            command, data, type(self).__name__, source_format, target_format
         )
+
+    def extract_template_args(self, metadata: dict):
+        return shlex.split(metadata.get('pandoc', '').split())
 
 
 class FormatConvertor:
 
     CONVERTORS = [WkHtmlToPdf(), Pandoc()]
 
-    def __init__(self):
-        # TODO: config
+    def __init__(self, config: DocumentWorkerConfig):
         self.convertors = dict()
         for c in self.CONVERTORS:
+            c.config = config
             for conv in itertools.product(c.SOURCE_FORMATS, c.TARGET_FORMATS):
                 self.convertors[conv] = c
 

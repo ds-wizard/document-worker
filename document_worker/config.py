@@ -1,6 +1,7 @@
 import configparser
 import logging
 import pika
+import shlex
 from typing import List, Tuple
 
 
@@ -79,11 +80,24 @@ class LoggingConfig:
         self.message_format = message_format
 
 
+class CommandConfig:
+
+    def __init__(self, executable: str, args: str):
+        self.executable = executable
+        self.args = args
+
+    @property
+    def command(self) -> List[str]:
+        return [self.executable] + shlex.split(self.args)
+
+
 class DocumentWorkerConfig(configparser.ConfigParser):
 
     MONGO_SECTION = 'mongo'
     MQ_SECTION = 'mq'
     LOGGING_SECTION = 'logging'
+    PANDOC_SECTION = 'pandoc'
+    WKHTMLTOPDF_SECTION = 'wkhtmltopdf'
 
     DEFAULTS = {
         MONGO_SECTION: {
@@ -105,7 +119,15 @@ class DocumentWorkerConfig(configparser.ConfigParser):
         LOGGING_SECTION: {
             'level': logging.WARNING,
             'format': '%(asctime)s | %(levelname)s | %(module)s: %(message)s',
-        }
+        },
+        PANDOC_SECTION: {
+            'executable': 'pandoc',
+            'args': '--standalone',
+        },
+        WKHTMLTOPDF_SECTION: {
+            'executable': 'wkhtmltopdf',
+            'args': '',
+        },
     }
 
     REQUIRED = {
@@ -169,3 +191,17 @@ class DocumentWorkerConfig(configparser.ConfigParser):
             self.getint_or_default(self.LOGGING_SECTION, 'level'),
             self.get_or_default(self.LOGGING_SECTION, 'format'),
         )
+
+    def _command_config(self, section: str) -> CommandConfig:
+        return CommandConfig(
+            self.get_or_default(section, 'executable'),
+            self.get_or_default(section, 'args'),
+        )
+
+    @property
+    def pandoc(self) -> CommandConfig:
+        return self._command_config(self.PANDOC_SECTION)
+
+    @property
+    def wkhtmltopdf(self) -> CommandConfig:
+        return self._command_config(self.WKHTMLTOPDF_SECTION)

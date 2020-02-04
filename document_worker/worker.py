@@ -205,7 +205,7 @@ class DocumentWorker:
         self.config = config
         self.document_builder = DocumentBuilder(
             TemplateRegistry(templates_dir),
-            FormatConvertor()  # TODO: pass configs
+            FormatConvertor(config)
         )
         self._prepare_logging()
         self.document_builder.template_registry.load_templates()
