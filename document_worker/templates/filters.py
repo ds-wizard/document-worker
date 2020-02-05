@@ -45,6 +45,28 @@ def markdown(md_text: str):
     return jinja2.Markup(markdown2.markdown(md_text))
 
 
+def dot(text: str):
+    if text.endswith('.') or len(text.strip()) == 0:
+        return text
+    return text + '.'
+
+
+def reply_str_value(reply) -> str:
+    if reply and 'value' in reply and 'value' in reply['value']:
+        return reply['value']['value']
+    return ''
+
+
+def reply_int_value(reply) -> int:
+    if reply and 'value' in reply and 'value' in reply['value']:
+        return int(reply['value']['value'])
+    return 0
+
+
+def reply_path(uuids: list) -> str:
+    return '.'.join(map(str, uuids))
+
+
 filters = {
     'any': any,
     'all': all,
@@ -53,4 +75,8 @@ filters = {
     'of_alphabet': of_alphabet,
     'roman': roman,
     'markdown': markdown,
+    'dot': dot,
+    'reply_str_value': reply_str_value,
+    'reply_int_value': reply_int_value,
+    'reply_path': reply_path,
 }
