@@ -5,10 +5,7 @@ import subprocess
 
 from document_worker.formats import Format, Formats
 from document_worker.config import DocumentWorkerConfig
-
-# TODO: unify encoding across modules
-DEFAULT_ENCODING = 'utf-8'
-EXIT_SUCCESS = 0
+from document_worker.consts import EXIT_SUCCESS, DEFAULT_ENCODING
 
 
 def run_conversion(args: list, input: bytes, name: str,
@@ -57,7 +54,8 @@ class WkHtmlToPdf:
             command, data, type(self).__name__, source_format, target_format
         )
 
-    def extract_template_args(self, metadata: dict):
+    @staticmethod
+    def extract_template_args(metadata: dict):
         return shlex.split(metadata.get('wkhtmltopdf', ''))
 
 
@@ -79,8 +77,9 @@ class Pandoc:
             command, data, type(self).__name__, source_format, target_format
         )
 
-    def extract_template_args(self, metadata: dict):
-        return shlex.split(metadata.get('pandoc', '').split())
+    @staticmethod
+    def extract_template_args(metadata: dict):
+        return shlex.split(metadata.get('pandoc', ''))
 
 
 class FormatConvertor:
@@ -101,6 +100,5 @@ class FormatConvertor:
                 data: bytes, metadata: dict) -> bytes:
         if source_format == target_format:
             return data
-        # TODO: detect and handle fails
         convertor = self.convertors[source_format, target_format]
         return convertor(source_format, target_format, data, metadata)

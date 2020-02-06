@@ -19,7 +19,6 @@ class Format:
 
 
 class Formats:
-    # TODO: use enum?
     JSON = Format('json', 'application/json', 'json')
     HTML = Format('html', 'text/html', 'html')
     PDF = Format('pdf', 'application/pdf', 'pdf')

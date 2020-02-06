@@ -90,7 +90,6 @@ class Template:
 
 
 class TemplateRegistry:
-    # TODO: make it fail if same uuids
 
     META_EXT = '.json'
 
@@ -108,8 +107,12 @@ class TemplateRegistry:
         try:
             logging.info(f'Loading template from {meta_file}')
             template = Template(meta_file)
-            self.templates[template.uuid] = template
-            logging.info(f'Template from {meta_file} loaded ({template.uuid})')
+            if template.uuid in self.templates:
+                logging.warning(f'Duplicate template UUID {template.uuid}'
+                                f' - ignoring {meta_file}')
+            else:
+                self.templates[template.uuid] = template
+                logging.info(f'Template from {meta_file} loaded ({template.uuid})')
         except TemplateException as e:
             logging.error(f'Template from {meta_file} ({e.template_uuid})'
                           f'cannot be loaded - {e.message}')

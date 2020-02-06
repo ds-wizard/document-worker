@@ -28,4 +28,3 @@ def main(config, templates_dir):
     except Exception as e:
         click.echo(f'Ended with error: {e}')
         exit(2)
-# TODO: name of the worker to identify

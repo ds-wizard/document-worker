@@ -5,10 +5,7 @@ import uuid
 from document_worker.conversions import FormatConvertor
 from document_worker.formats import Format, Formats
 from document_worker.templates import TemplateRegistry
-
-
-# TODO: unify encoding across modules
-DEFAULT_ENCODING = 'utf-8'
+from document_worker.consts import DEFAULT_ENCODING
 
 
 class DocumentBuilderException(Exception):
