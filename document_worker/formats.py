@@ -41,4 +41,3 @@ class Formats:
             'json': Formats.JSON
         }
         return known_formats.get(name, None)
-

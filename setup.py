@@ -29,6 +29,7 @@ setup(
         'pymongo',
         'jinja2',
         'markdown2',
+        'tenacity',
     ],
     entry_points={
         'console_scripts': [

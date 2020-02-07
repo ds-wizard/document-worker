@@ -47,7 +47,7 @@ class WkHtmlToPdf:
         self.config = config
 
     def __call__(self, source_format: Format, target_format: Format,
-                data: bytes, metadata: dict) -> bytes:
+                 data: bytes, metadata: dict) -> bytes:
         template_args = self.extract_template_args(metadata)
         command = self.config.wkhtmltopdf.command + self.ARGS1 + template_args + self.ARGS2
         return run_conversion(
@@ -69,7 +69,7 @@ class Pandoc:
         self.config = config
 
     def __call__(self, source_format: Format, target_format: Format,
-                data: bytes, metadata: dict) -> bytes:
+                 data: bytes, metadata: dict) -> bytes:
         args = ['-f', 'html', '-t', target_format.name, '-o', '-']
         template_args = self.extract_template_args(metadata)
         command = self.config.pandoc.command + template_args + args

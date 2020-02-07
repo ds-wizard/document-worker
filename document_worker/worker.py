@@ -7,12 +7,18 @@ import pika
 import pymongo
 import sys
 import uuid
+import tenacity
 
 from document_worker.builder import DocumentBuilder
 from document_worker.config import DocumentWorkerConfig
 from document_worker.conversions import FormatConvertor
 from document_worker.formats import Formats
 from document_worker.templates import TemplateRegistry
+
+RETRY_MONGO_MULTIPLIER = 0.5
+RETRY_MONGO_TRIES = 3
+RETRY_MQ_MULTIPLIER = 0.5
+RETRY_MQ_TRIES = 5
 
 
 class JobException(Exception):
@@ -105,8 +111,14 @@ class Job:
         self.doc_context = data.get(JobDataField.DOCUMENT_CONTEXT, self.doc_context)
 
     @handle_job_step('Failed to connect to Mongo database')
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_MONGO_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_MONGO_TRIES),
+        before=tenacity.before_log(logging.getLogger(), logging.INFO),
+        after=tenacity.after_log(logging.getLogger(), logging.INFO),
+    )
     def connect_mongo(self):
-        # TODO: retry
         host = self.config.mongo.host
         port = self.config.mongo.port
         db = self.config.mongo.database
@@ -160,8 +172,14 @@ class Job:
         )
 
     @handle_job_step('Failed to store document in GridFS')
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_MONGO_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_MONGO_TRIES),
+        before=tenacity.before_log(logging.getLogger(), logging.INFO),
+        after=tenacity.after_log(logging.getLogger(), logging.INFO),
+    )
     def store_document(self):
-        # TODO: retry
         host = self.config.mongo.host
         port = self.config.mongo.port
         db = self.config.mongo.database
@@ -218,8 +236,14 @@ class DocumentWorker:
         )
         return logging.getLogger('docworker')
 
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_MQ_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_MQ_TRIES),
+        before=tenacity.before_log(logging.getLogger(), logging.INFO),
+        after=tenacity.after_log(logging.getLogger(), logging.INFO),
+    )
     def run(self):
-        # TODO: retry
         queue = self.config.mq.queue
         logging.info(f'Connecting to MQ @ {self.config.mq.host}:{self.config.mq.port}/{self.config.mq.vhost}')
         mq = pika.BlockingConnection(
