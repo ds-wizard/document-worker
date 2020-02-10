@@ -48,7 +48,7 @@ class Template:
         self._add_j2_enhancements()
         self.j2_root_template = self.j2_env.get_template(self.root_filename)
 
-    def _raise_exc(self, message: str):
+    def raise_exc(self, message: str):
         raise TemplateException(self.meta_file, self.uuid, message)
 
     def _load_metadata(self) -> dict:
@@ -56,23 +56,23 @@ class Template:
             with open(self.meta_file, mode='r') as f:
                 return json.load(f)
         except Exception as e:
-            self._raise_exc(f'Cannot read template meta file: {e}')
+            self.raise_exc(f'Cannot read template meta file: {e}')
 
     def _verify_metadata(self):
         for required_field in self.META_REQUIRED:
             if required_field not in self.metadata:
-                self._raise_exc(f'Missing required field {required_field}')
+                self.raise_exc(f'Missing required field {required_field}')
 
     def _create_jinja2_template(self) -> jinja2.Template:
         try:
             with open(self.root_file, mode='r') as f:
                 content = f.read()
         except Exception as e:
-            self._raise_exc(f'Cannot read template root file: {e}')
+            self.raise_exc(f'Cannot read template root file: {e}')
         try:
             return jinja2.Template(content)
         except Exception as e:
-            self._raise_exc(f'Failed to load Jinja2 template: {e}')
+            self.raise_exc(f'Failed to load Jinja2 template: {e}')
 
     @property
     def output_format(self) -> Format:
@@ -121,7 +121,6 @@ class TemplateRegistry:
                           f'cannot be loaded - {type(e).__name__}: {e}')
 
     def has_template(self, template_uuid: uuid.UUID) -> bool:
-        self.templates.keys()
         return template_uuid in self.templates.keys()
 
     def __getitem__(self, template_uuid: uuid.UUID) -> Template:

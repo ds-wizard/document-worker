@@ -63,7 +63,7 @@ def handle_job_step(message):
                 raise e
             except Exception as e:
                 logging.debug('Handling exception', exc_info=True)
-                job._raise_exc(f'{message}: [{type(e).__name__}] {e}')
+                job.raise_exc(f'{message}: [{type(e).__name__}] {e}')
         return handled_step
     return decorator
 
@@ -92,7 +92,7 @@ class Job:
         self.final_file = None
         self.target_format = None
 
-    def _raise_exc(self, message: str):
+    def raise_exc(self, message: str):
         raise JobException(self.doc_uuid, message)
 
     def _modify_doc(self, modification: dict):
@@ -105,7 +105,7 @@ class Job:
     def process_body(self, body):
         data = json.loads(body.decode('utf-8'))
         if JobDataField.DOCUMENT_UUID not in data.keys():
-            self._raise_exc('Job data in body does not contain document UUID')
+            self.raise_exc('Job data in body does not contain document UUID')
         self.doc_uuid = data[JobDataField.DOCUMENT_UUID]
         self.doc_filter = {DocumentField.UUID: self.doc_uuid}
         self.doc_context = data.get(JobDataField.DOCUMENT_CONTEXT, self.doc_context)
@@ -127,14 +127,14 @@ class Job:
         logging.info(f'Connecting to Mongo DB @ {host}:{port}/{db}')
         collections = self.mongo_db.list_collection_names()
         if collection not in collections:
-            self._raise_exc(f'Collection "{collection}" not found in Mongo database')
+            self.raise_exc(f'Collection "{collection}" not found in Mongo database')
 
     @handle_job_step('Failed to get job details from Mongo DB')
     def get_job(self):
         logging.info(f'Getting the document "{self.doc_uuid}" details from Mongo DB')
         self.doc = self._modify_doc({DocumentField.RETRIEVED: datetime.datetime.utcnow()})
         if self.doc is None:
-            self._raise_exc(f'Document "{self.doc_uuid}" not found')
+            self.raise_exc(f'Document "{self.doc_uuid}" not found')
         logging.info(f'Job "{self.doc_uuid}" details received')
 
     @handle_job_step('Failed to verify job details')
@@ -143,25 +143,25 @@ class Job:
         # verify fields
         for field in self.DOCUMENT_FIELDS:
             if field not in self.doc.keys():
-                self._raise_exc(f'Missing field "{field}" in the job details')
+                self.raise_exc(f'Missing field "{field}" in the job details')
         # verify state
         state = self.doc[DocumentField.STATE]
         logging.info(f'Original state of job is {state}')
         if state == DocumentState.FINISHED:
-            self._raise_exc(f'Job is already finished')
+            self.raise_exc(f'Job is already finished')
         # verify template
         template_uuid = uuid.UUID(self.doc[DocumentField.TEMPLATE])
         if not self.document_builder.template_registry.has_template(template_uuid):
-            self._raise_exc(f'Template {template_uuid} not found')
+            self.raise_exc(f'Template {template_uuid} not found')
         # verify format and conversion
         target_format_name = self.doc[DocumentField.FORMAT].lower()
         self.target_format = Formats.get(target_format_name)
         if self.target_format is None:
-            self._raise_exc(f'Unknown target format {target_format_name}')
+            self.raise_exc(f'Unknown target format {target_format_name}')
         if self.target_format != Formats.JSON:
             source_format = self.document_builder.template_registry[template_uuid].output_format
             if not self.document_builder.format_convertor.can_convert(source_format, self.target_format):
-                self._raise_exc(f'Cannot convert {source_format} to {target_format_name}')
+                self.raise_exc(f'Cannot convert {source_format} to {target_format_name}')
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
