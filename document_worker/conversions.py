@@ -9,14 +9,14 @@ from document_worker.consts import EXIT_SUCCESS, DEFAULT_ENCODING
 
 
 def run_conversion(args: list, input: bytes, name: str,
-                   source_format: Format, target_format: Format) -> bytes:
+                   source_format: Format, target_format: Format, timeout=None) -> bytes:
     command = ' '.join(args)
     logging.info(f'Calling "{command}" to convert from {source_format} to {target_format}')
     p = subprocess.Popen(args,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    stdout, stderr = p.communicate(input=input)
+    stdout, stderr = p.communicate(input=input, timeout=timeout)
     exit_code = p.returncode
     if exit_code != EXIT_SUCCESS:
         raise FormatConversionException(
@@ -51,7 +51,8 @@ class WkHtmlToPdf:
         template_args = self.extract_template_args(metadata)
         command = self.config.wkhtmltopdf.command + self.ARGS1 + template_args + self.ARGS2
         return run_conversion(
-            command, data, type(self).__name__, source_format, target_format
+            command, data, type(self).__name__, source_format, target_format,
+            timeout=self.config.wkhtmltopdf.timeout
         )
 
     @staticmethod
@@ -74,7 +75,8 @@ class Pandoc:
         template_args = self.extract_template_args(metadata)
         command = self.config.pandoc.command + template_args + args
         return run_conversion(
-            command, data, type(self).__name__, source_format, target_format
+            command, data, type(self).__name__, source_format, target_format,
+            timeout=self.config.pandoc.timeout
         )
 
     @staticmethod

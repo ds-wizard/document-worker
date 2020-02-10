@@ -82,9 +82,10 @@ class LoggingConfig:
 
 class CommandConfig:
 
-    def __init__(self, executable: str, args: str):
+    def __init__(self, executable: str, args: str, timeout: float):
         self.executable = executable
         self.args = args
+        self.timeout = timeout
 
     @property
     def command(self) -> List[str]:
@@ -123,10 +124,12 @@ class DocumentWorkerConfig(configparser.ConfigParser):
         PANDOC_SECTION: {
             'executable': 'pandoc',
             'args': '--standalone',
+            'timeout': None,
         },
         WKHTMLTOPDF_SECTION: {
             'executable': 'wkhtmltopdf',
             'args': '',
+            'timeout': None,
         },
     }
 
@@ -159,6 +162,11 @@ class DocumentWorkerConfig(configparser.ConfigParser):
         if section in self.DEFAULTS and option in self.DEFAULTS[section]:
             return self.get(section, option, fallback=self.DEFAULTS[section][option])
         return self.get(section, option)
+
+    def getfloat_or_default(self, section: str, option: str) -> float:
+        if section in self.DEFAULTS and option in self.DEFAULTS[section]:
+            return self.getfloat(section, option, fallback=self.DEFAULTS[section][option])
+        return self.getfloat(section, option)
 
     @property
     def mongo(self) -> MongoConfig:
@@ -196,6 +204,7 @@ class DocumentWorkerConfig(configparser.ConfigParser):
         return CommandConfig(
             self.get_or_default(section, 'executable'),
             self.get_or_default(section, 'args'),
+            self.getfloat_or_default(section, 'timeout'),
         )
 
     @property
