@@ -1,5 +1,7 @@
 FROM python:3.8-slim-buster
 
+RUN mkdir -p /app/templates
+
 RUN apt-get update && apt-get install -qq -y wget fonts-noto fonts-symbola
 
 RUN wget --quiet https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.buster_amd64.deb && \
