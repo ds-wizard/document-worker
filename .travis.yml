@@ -1,0 +1,62 @@
+sudo: required
+language: python
+
+services:
+  - docker
+
+python:
+  - '3.8'
+
+install:
+  - pip install -r requirements.txt
+  - python setup.py install
+
+cache: pip
+
+before_script:
+  - docker login -u "$PUBLIC_DOCKER_USER" -p "$PUBLIC_DOCKER_PASSWORD"
+  - docker login -u "$PRIVATE_DOCKER_USER" -p "$PRIVATE_DOCKER_PASSWORD" "$PRIVATE_DOCKER_REGISTRY"
+
+  - export PRIVATE_IMAGE="$PRIVATE_DOCKER_REGISTRY/engine/document-worker"
+  - export IMAGE="datastewardshipwizard/document-worker"
+  - export IMAGE_TAG="$PRIVATE_IMAGE:$TRAVIS_COMMIT"
+  - export IMAGE_TAG_BRANCH="$PRIVATE_IMAGE:"`echo $TRAVIS_BRANCH | sed 's#/#-#g'`
+  - export IMAGE_TAG_DEVELOP="$IMAGE:develop"
+  - export IMAGE_TAG_LATEST="$IMAGE:latest"
+  - export IMAGE_TAG_MAJOR="$IMAGE:"`echo $TRAVIS_TAG | sed -E "s/v(.*)\..*\..*/\1/g"`
+  - export IMAGE_TAG_MINOR="$IMAGE:"`echo $TRAVIS_TAG | sed -E "s/v(.*)\..*/\1/g"`
+  - export IMAGE_TAG_PATCH="$IMAGE:"`echo $TRAVIS_TAG | sed -E "s/v//g"`
+  - export IMAGE_TAG_RC="$IMAGE:"`echo $TRAVIS_TAG | sed -E "s/v//g"`
+
+script:
+  # TODO: test when there are some tests
+  - docker build -t $IMAGE_TAG .
+  - docker push $IMAGE_TAG
+
+after_success:
+  # current branch tag (private registry)
+  - if [[ $TRAVIS_PULL_REQUEST == "false" ]]; then
+    docker image tag $IMAGE_TAG $IMAGE_TAG_BRANCH && docker push $IMAGE_TAG_BRANCH;
+    fi
+
+  # develop
+  - if [[ $TRAVIS_BRANCH == "develop" && $TRAVIS_PULL_REQUEST == "false" ]]; then
+    docker image tag $IMAGE_TAG $IMAGE_TAG_DEVELOP && docker push $IMAGE_TAG_DEVELOP;
+    fi
+
+  # latest
+  - if [[ $TRAVIS_BRANCH == "master" && $TRAVIS_PULL_REQUEST == "false" ]]; then
+    docker image tag $IMAGE_TAG $IMAGE_TAG_LATEST && docker push $IMAGE_TAG_LATEST;
+    fi
+
+  # version
+  - if [[ $TRAVIS_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    docker image tag $IMAGE_TAG $IMAGE_TAG_MAJOR && docker push $IMAGE_TAG_MAJOR;
+    docker image tag $IMAGE_TAG $IMAGE_TAG_MINOR && docker push $IMAGE_TAG_MINOR;
+    docker image tag $IMAGE_TAG $IMAGE_TAG_PATCH && docker push $IMAGE_TAG_PATCH;
+    fi
+
+  # rc version
+  - if [[ $TRAVIS_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+    docker image tag $IMAGE_TAG $IMAGE_TAG_RC && docker push $IMAGE_TAG_RC;
+    fi
