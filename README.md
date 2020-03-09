@@ -2,7 +2,7 @@
 
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ds-wizard/document-worker)](https://github.com/ds-wizard/document-worker/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/datastewardshipwizard/document-worker)](https://hub.docker.com/r/datastewardshipwizard/document-worker)
-[![Build Status](https://travis-ci.org/ds-wizard/document-worker.svg?branch=develop)](https://travis-ci.org/ds-wizard/document-worker)
+[![Document Worker CI](https://github.com/ds-wizard/document-worker/workflows/Document%20Worker%20CI/badge.svg?branch=master)](https://github.com/ds-wizard/document-worker/actions)
 [![GitHub](https://img.shields.io/github/license/ds-wizard/document-worker)](LICENSE)
 
 *Worker for assembling and transforming documents*
