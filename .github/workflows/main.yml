@@ -1,4 +1,4 @@
-name: DSW CI
+name: Document Worker CI
 
 on:
   push:
