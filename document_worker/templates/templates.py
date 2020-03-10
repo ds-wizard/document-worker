@@ -4,7 +4,6 @@ import logging
 import os
 import uuid
 
-
 from document_worker.formats import Format, Formats
 
 
@@ -91,21 +90,21 @@ class Template:
 
 class TemplateRegistry:
 
-    META_EXT = '.json'
+    META_FILE = 'template.json'
 
-    def __init__(self, templates_dir: str):
+    def __init__(self, templates_dir):
         self.templates_dir = templates_dir
         self.templates = dict()
 
     def load_templates(self):
         logging.info(f'Loading document templates from {self.templates_dir}')
-        for filename in os.listdir(self.templates_dir):
-            if filename.endswith(self.META_EXT):
-                self._load_template(os.path.join(self.templates_dir, filename))
+        for root, dirs, files in os.walk(self.templates_dir):
+            for filename in files:
+                if filename == self.META_FILE:
+                    self._load_template(os.path.join(root, filename))
 
     def _load_template(self, meta_file: str):
         try:
-            logging.info(f'Loading template from {meta_file}')
             template = Template(meta_file)
             if template.uuid in self.templates:
                 logging.warning(f'Duplicate template UUID {template.uuid}'
