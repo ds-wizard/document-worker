@@ -9,10 +9,9 @@ import sys
 import uuid
 import tenacity
 
-from document_worker.builder import DocumentBuilder
+from typing import Optional
+
 from document_worker.config import DocumentWorkerConfig
-from document_worker.conversions import FormatConvertor
-from document_worker.formats import Formats
 from document_worker.templates import TemplateRegistry
 
 RETRY_MONGO_MULTIPLIER = 0.5
@@ -39,7 +38,7 @@ class DocumentField:
     UUID = 'uuid'
     STATE = 'state'
     TEMPLATE = 'templateUuid'
-    FORMAT = 'format'
+    FORMAT = 'formatUuid'
     RETRIEVED = 'retrievedAt'
     FINISHED = 'finishedAt'
     METADATA = 'metadata'
@@ -76,9 +75,9 @@ class Job:
         DocumentField.FORMAT,
     ]
 
-    def __init__(self, config: DocumentWorkerConfig, document_builder: DocumentBuilder):
+    def __init__(self, config: DocumentWorkerConfig, template_registry: TemplateRegistry):
         self.config = config
-        self.document_builder = document_builder
+        self.template_registry = template_registry
         self.mongo_client = pymongo.MongoClient(**config.mongo.mongo_client_kwargs)
         self.mongo_db = self.mongo_client[config.mongo.database]
         self.mongo_collection = self.mongo_db[config.mongo.collection]
@@ -86,11 +85,9 @@ class Job:
 
         self.doc_uuid = 'unknown'
         self.doc_context = dict()
-        self.doc_filter = None
-        self.doc = None
-        self.base_file = None
-        self.final_file = None
-        self.target_format = None
+        self.doc_filter = None  # type: Optional[dict]
+        self.doc = None  # type: Optional[dict]
+        self.final_file = None  # type: Optional[DocumentField]
 
     def raise_exc(self, message: str):
         raise JobException(self.doc_uuid, message)
@@ -151,24 +148,20 @@ class Job:
             self.raise_exc(f'Job is already finished')
         # verify template
         template_uuid = uuid.UUID(self.doc[DocumentField.TEMPLATE])
-        if not self.document_builder.template_registry.has_template(template_uuid):
+        if not self.template_registry.has_template(template_uuid):
             self.raise_exc(f'Template {template_uuid} not found')
-        # verify format and conversion
-        target_format_name = self.doc[DocumentField.FORMAT].lower()
-        self.target_format = Formats.get(target_format_name)
-        if self.target_format is None:
-            self.raise_exc(f'Unknown target format {target_format_name}')
-        if self.target_format != Formats.JSON:
-            source_format = self.document_builder.template_registry[template_uuid].output_format
-            if not self.document_builder.format_convertor.can_convert(source_format, self.target_format):
-                self.raise_exc(f'Cannot convert {source_format} to {target_format_name}')
+        # verify format
+        format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
+        if not self.template_registry.has_format(template_uuid, format_uuid):
+            self.raise_exc(f'Format {format_uuid} (in template {template_uuid}) not found')
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
         logging.info(f'Building document by rendering template with context')
         template_uuid = uuid.UUID(self.doc[DocumentField.TEMPLATE])
-        self.final_file = self.document_builder.build_document(
-            template_uuid, self.doc_context, self.target_format
+        format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
+        self.final_file = self.template_registry.render(
+            template_uuid, format_uuid, self.doc_context
         )
 
     @handle_job_step('Failed to store document in GridFS')
@@ -199,7 +192,7 @@ class Job:
             DocumentField.FINISHED: datetime.datetime.utcnow(),
             DocumentField.STATE: DocumentState.FINISHED,
             DocumentField.METADATA: {
-                DocumentField.METADATA_CONTENT_TYPE: self.final_file.format.content_type,
+                DocumentField.METADATA_CONTENT_TYPE: self.final_file.content_type,
                 DocumentField.METADATA_FILENAME: self.final_file.filename(document_uuid)
             }
         })
@@ -221,12 +214,9 @@ class DocumentWorker:
 
     def __init__(self, config: DocumentWorkerConfig, templates_dir):
         self.config = config
-        self.document_builder = DocumentBuilder(
-            TemplateRegistry(templates_dir),
-            FormatConvertor(config)
-        )
+        self.template_registry = TemplateRegistry(config, templates_dir)
         self._prepare_logging()
-        self.document_builder.template_registry.load_templates()
+        self.template_registry.load_templates()
 
     def _prepare_logging(self):
         logging.basicConfig(
@@ -260,7 +250,7 @@ class DocumentWorker:
 
     def _callback(self, ch, method, properties, body):
         logging.info(f'Received a job')
-        job = Job(self.config, self.document_builder)
+        job = Job(self.config, self.template_registry)
         try:
             job.process_body(body)
             job.connect_mongo()
