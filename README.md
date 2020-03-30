@@ -49,6 +49,13 @@ $ docker build . -t docworker:local
 -  `/app/templates` = directory with templates
 -  `/usr/share/fonts/<type>/<name>` = fonts according to [Debian wiki](https://wiki.debian.org/Fonts/PackagingPolicy) (for wkhtmltopdf)
 
+### Fonts
+
+We bundle Docker image with default fonts (for PDF generation, see `fonts` folder):
+
+- [Noto Fonts](https://github.com/googlefonts/noto-fonts) (some variants)
+- [Symbola](https://fontlibrary.org/en/font/symbola)
+
 ## License
 
 This project is licensed under the Apache License v2.0 - see the

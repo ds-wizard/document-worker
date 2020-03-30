@@ -12,6 +12,9 @@ RUN wget --quiet https://github.com/jgm/pandoc/releases/download/2.9.1.1/pandoc-
     apt-get -qy install ./pandoc-2.9.1.1-1-amd64.deb && \
     rm -f pandoc-2.9.1.1-1-amd64.deb
 
+COPY fonts /usr/share/fonts/truetype/custom
+RUN fc-cache
+
 WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
 
