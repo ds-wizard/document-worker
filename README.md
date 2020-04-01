@@ -2,7 +2,7 @@
 
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ds-wizard/document-worker)](https://github.com/ds-wizard/document-worker/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/datastewardshipwizard/document-worker)](https://hub.docker.com/r/datastewardshipwizard/document-worker)
-[![Build Status](https://travis-ci.org/ds-wizard/document-worker.svg?branch=develop)](https://travis-ci.org/ds-wizard/document-worker)
+[![Document Worker CI](https://github.com/ds-wizard/document-worker/workflows/Document%20Worker%20CI/badge.svg?branch=master)](https://github.com/ds-wizard/document-worker/actions)
 [![GitHub](https://img.shields.io/github/license/ds-wizard/document-worker)](LICENSE)
 
 *Worker for assembling and transforming documents*
@@ -48,6 +48,13 @@ $ docker build . -t docworker:local
 -  `/app/config.cfg` = configuration file (see [example](config.cfg))
 -  `/app/templates` = directory with templates
 -  `/usr/share/fonts/<type>/<name>` = fonts according to [Debian wiki](https://wiki.debian.org/Fonts/PackagingPolicy) (for wkhtmltopdf)
+
+### Fonts
+
+We bundle Docker image with default fonts (for PDF generation, see `fonts` folder):
+
+- [Noto Fonts](https://github.com/googlefonts/noto-fonts) (some variants)
+- [Symbola](https://fontlibrary.org/en/font/symbola)
 
 ## License
 
