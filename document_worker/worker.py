@@ -260,23 +260,18 @@ class DocumentWorker:
             job.build_document()
             job.store_document()
             job.finalize()
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-            logging.info('Job ACKed')
         except JobException as e:
             logging.error(f'({e.job_id}) {e.message}')
             if job.try_set_job_state(DocumentState.FAILED):
                 logging.info(f'({e.job_id}) Set state to {DocumentState.FAILED}')
-                logging.info('Job ACKed')
-                ch.basic_ack(delivery_tag=method.delivery_tag)
             else:
                 logging.warning(f'({e.job_id}) Could not set state to {DocumentState.FAILED}')
         except Exception as e:
             logging.error(f'Job failed with error: {e}')
             if job.try_set_job_state(DocumentState.FAILED):
                 logging.info(f'Set state to {DocumentState.FAILED}')
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                logging.info('Job ACKed')
             else:
                 logging.warning(f'Could not set state to {DocumentState.FAILED}')
         finally:
-            logging.info(f'Job processing finished')
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            logging.info(f'Job processing finished (ACK sent)')

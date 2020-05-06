@@ -160,8 +160,8 @@ class DocumentWorkerConfig(configparser.ConfigParser):
 
     def getint_or_default(self, section: str, option: str) -> int:
         if section in self.DEFAULTS and option in self.DEFAULTS[section]:
-            return self.get(section, option, fallback=self.DEFAULTS[section][option])
-        return self.get(section, option)
+            return self.getint(section, option, fallback=self.DEFAULTS[section][option])
+        return self.getint(section, option)
 
     def getfloat_or_default(self, section: str, option: str) -> float:
         if section in self.DEFAULTS and option in self.DEFAULTS[section]:
@@ -196,7 +196,7 @@ class DocumentWorkerConfig(configparser.ConfigParser):
     @property
     def logging(self) -> LoggingConfig:
         return LoggingConfig(
-            self.getint_or_default(self.LOGGING_SECTION, 'level'),
+            self.get_or_default(self.LOGGING_SECTION, 'level'),
             self.get_or_default(self.LOGGING_SECTION, 'format'),
         )
 
