@@ -30,6 +30,7 @@ setup(
         'jinja2',
         'markdown2',
         'tenacity',
+        'PyYAML',
     ],
     entry_points={
         'console_scripts': [
