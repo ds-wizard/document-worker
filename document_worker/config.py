@@ -2,12 +2,13 @@ import configparser
 import logging
 import pika
 import shlex
+import yaml
 from typing import List, Tuple
 
 
 class MissingConfigurationError(Exception):
 
-    def __init__(self, missing: List[Tuple[str, str]]):
+    def __init__(self, missing: List[str]):
         self.missing = missing
 
 
@@ -18,13 +19,25 @@ class MongoConfig:
                  auth_database: str, auth_mechanism: str):
         self.host = host
         self.port = port
-        self.username = username
-        self.password = password
         self.database = database
         self.collection = collection
         self.fs_collection = fs_collection
+        self.username = username
+        self.password = password
         self.auth_database = auth_database
         self.auth_mechanism = auth_mechanism
+
+    def __str__(self):
+        return f'MongoConfig\n' \
+               f'- host = {self.host} ({type(self.host)})\n' \
+               f'- port = {self.port} ({type(self.port)})\n' \
+               f'- database = {self.database} ({type(self.database)})\n' \
+               f'- collection = {self.collection} ({type(self.collection)})\n' \
+               f'- fs_collection = {self.fs_collection} ({type(self.fs_collection)})\n' \
+               f'- username = {self.username} ({type(self.username)})\n' \
+               f'- password = {self.password} ({type(self.password)})\n' \
+               f'- auth_database = {self.auth_database} ({type(self.auth_database)})\n' \
+               f'- auth_mechanism = {self.auth_mechanism} ({type(self.auth_mechanism)})\n'
 
     @property
     def mongo_client_kwargs(self):
@@ -50,9 +63,18 @@ class MQueueConfig:
         self.host = host
         self.port = port
         self.vhost = vhost
+        self.queue = queue
         self.username = username
         self.password = password
-        self.queue = queue
+
+    def __str__(self):
+        return f'MQueueConfig\n' \
+               f'- host = {self.host} ({type(self.host)})\n' \
+               f'- port = {self.port} ({type(self.port)})\n' \
+               f'- vhost = {self.vhost} ({type(self.vhost)})\n' \
+               f'- queue = {self.queue} ({type(self.queue)})\n' \
+               f'- username = {self.username} ({type(self.username)})\n' \
+               f'- password = {self.password} ({type(self.password)})\n'
 
     @property
     def auth_enabled(self):
@@ -75,9 +97,14 @@ class MQueueConfig:
 
 class LoggingConfig:
 
-    def __init__(self, level: int, message_format: str):
+    def __init__(self, level, message_format: str):
         self.level = level
         self.message_format = message_format
+
+    def __str__(self):
+        return f'MQueueConfig\n' \
+               f'- level = {self.level} ({type(self.level)})\n' \
+               f'- message_format = {self.message_format} ({type(self.message_format)})\n'
 
 
 class CommandConfig:
@@ -91,8 +118,182 @@ class CommandConfig:
     def command(self) -> List[str]:
         return [self.executable] + shlex.split(self.args)
 
+    def __str__(self):
+        return f'CommandConfig\n' \
+               f'- executable = {self.executable} ({type(self.executable)})\n' \
+               f'- args = {self.args} ({type(self.args)})\n' \
+               f'- timeout = {self.timeout} ({type(self.timeout)})\n'
 
-class DocumentWorkerConfig(configparser.ConfigParser):
+
+class DocumentWorkerConfig:
+
+    def __init__(self, cfg_parser):
+        self.mongo = cfg_parser.mongo
+        self.mq = cfg_parser.mq
+        self.logging = cfg_parser.logging
+        self.pandoc = cfg_parser.pandoc
+        self.wkhtmltopdf = cfg_parser.wkhtmltopdf
+
+    def __str__(self):
+        return f'{str(self.mongo)}\n' \
+               f'{str(self.mq)}\n' \
+               f'{str(self.logging)}\n' \
+               f'{str(self.pandoc)}\n' \
+               f'{str(self.wkhtmltopdf)}\n'
+
+
+class DocumentWorkerYMLConfigParser:
+
+    MONGO_SECTION = 'mongo'
+    MONGO_AUTH_SUBSECTION = 'auth'
+    MQ_SECTION = 'mq'
+    MQ_AUTH_SUBSECTION = 'auth'
+    LOGGING_SECTION = 'logging'
+    EXTERNAL_SECTION = 'externals'
+    PANDOC_SUBSECTION = 'pandoc'
+    WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
+
+    DEFAULTS = {
+        MONGO_SECTION: {
+            'host': 'localhost',
+            'port': 27017,
+            'collection': 'documents',
+            'fs_collection': 'documentFs',
+            MONGO_AUTH_SUBSECTION: {
+                'username': None,
+                'password': None,
+                'database': None,
+                'mechanism': 'SCRAM-SHA-256'
+            },
+        },
+        MQ_SECTION: {
+            'host': 'localhost',
+            'port': 5672,
+            'vhost': '/',
+            'queue': 'document.generation',
+            MQ_AUTH_SUBSECTION: {
+                'username': None,
+                'password': None,
+            },
+        },
+        LOGGING_SECTION: {
+            'level': 'WARNING',
+            'format': '%(asctime)s | %(levelname)s | %(module)s: %(message)s',
+        },
+        EXTERNAL_SECTION: {
+            PANDOC_SUBSECTION: {
+                'executable': 'pandoc',
+                'args': '--standalone',
+                'timeout': None,
+            },
+            WKHTMLTOPDF_SUBSECTION: {
+                'executable': 'wkhtmltopdf',
+                'args': '',
+                'timeout': None,
+            },
+        },
+    }
+
+    REQUIRED = [
+        ['mongo', 'database']
+    ]
+
+    def __init__(self):
+        self.cfg = dict()
+
+    @staticmethod
+    def can_read(content):
+        try:
+            yaml.load(content, Loader=yaml.FullLoader)
+            return True
+        except Exception:
+            return False
+
+    def read_file(self, fp):
+        self.cfg = yaml.load(fp, Loader=yaml.FullLoader)
+
+    def read_string(self, content):
+        self.cfg = yaml.load(content, Loader=yaml.FullLoader)
+
+    def has(self, *path):
+        x = self.cfg
+        for p in path:
+            if not hasattr(x, 'keys') or p not in x.keys():
+                return False
+            x = x[p]
+        return True
+
+    def _get_default(self, *path):
+        x = self.DEFAULTS
+        for p in path:
+            x = x[p]
+        return x
+
+    def get_or_default(self, *path):
+        x = self.cfg
+        for p in path:
+            if not hasattr(x, 'keys') or p not in x.keys():
+                return self._get_default(*path)
+            x = x[p]
+        return x
+
+    def validate(self):
+        missing = []
+        for path in self.REQUIRED:
+            if not self.has(*path):
+                missing.append('.'.join(path))
+        if len(missing) > 0:
+            raise MissingConfigurationError(missing)
+
+    @property
+    def mongo(self) -> MongoConfig:
+        return MongoConfig(
+            host=self.get_or_default(self.MONGO_SECTION, 'host'),
+            port=self.get_or_default(self.MONGO_SECTION, 'port'),
+            database=self.get_or_default(self.MONGO_SECTION, 'database'),
+            collection=self.get_or_default(self.MONGO_SECTION, 'collection'),
+            fs_collection=self.get_or_default(self.MONGO_SECTION, 'fs_collection'),
+            username=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'username'),
+            password=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'password'),
+            auth_database=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'database'),
+            auth_mechanism=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'mechanism'),
+        )
+
+    @property
+    def mq(self) -> MQueueConfig:
+        return MQueueConfig(
+            host=self.get_or_default(self.MQ_SECTION, 'host'),
+            port=self.get_or_default(self.MQ_SECTION, 'port'),
+            vhost=self.get_or_default(self.MQ_SECTION, 'vhost'),
+            queue=self.get_or_default(self.MQ_SECTION, 'queue'),
+            username=self.get_or_default(self.MQ_SECTION, self.MQ_AUTH_SUBSECTION, 'username'),
+            password=self.get_or_default(self.MQ_SECTION, self.MQ_AUTH_SUBSECTION, 'password'),
+        )
+
+    @property
+    def logging(self) -> LoggingConfig:
+        return LoggingConfig(
+            level=self.get_or_default(self.LOGGING_SECTION, 'level'),
+            message_format=self.get_or_default(self.LOGGING_SECTION, 'format'),
+        )
+
+    def _command_config(self, *path: str) -> CommandConfig:
+        return CommandConfig(
+            executable=self.get_or_default(*path, 'executable'),
+            args=self.get_or_default(*path, 'args'),
+            timeout=self.get_or_default(*path, 'timeout'),
+        )
+
+    @property
+    def pandoc(self) -> CommandConfig:
+        return self._command_config(self.EXTERNAL_SECTION, self.PANDOC_SUBSECTION)
+
+    @property
+    def wkhtmltopdf(self) -> CommandConfig:
+        return self._command_config(self.EXTERNAL_SECTION, self.WKHTMLTOPDF_SUBSECTION)
+
+
+class DocumentWorkerCFGConfigParser(configparser.ConfigParser):
 
     MONGO_SECTION = 'mongo'
     MQ_SECTION = 'mq'
@@ -106,7 +307,8 @@ class DocumentWorkerConfig(configparser.ConfigParser):
             'port': 27017,
             'username': None,
             'password': None,
-            'fs_collection': 'fs',
+            'collection': 'documents',
+            'fs_collection': 'documentFs',
             'auth_database': None,
             'auth_mechanism': 'SCRAM-SHA-256'
         },
@@ -116,6 +318,7 @@ class DocumentWorkerConfig(configparser.ConfigParser):
             'vhost': '/',
             'username': None,
             'password': None,
+            'queue': 'document.generation',
         },
         LOGGING_SECTION: {
             'level': logging.WARNING,
@@ -134,12 +337,20 @@ class DocumentWorkerConfig(configparser.ConfigParser):
     }
 
     REQUIRED = {
-        MONGO_SECTION: ['database', 'collection'],
-        MQ_SECTION: ['queue'],
+        MONGO_SECTION: ['database'],
     }
 
     def __init__(self):
         super().__init__()
+
+    @staticmethod
+    def can_read(fp):
+        try:
+            cfg = configparser.ConfigParser()
+            cfg.read_string(fp)
+            return True
+        except Exception:
+            return False
 
     def empty_option(self, section: str, option: str) -> bool:
         return self.get(section, option, fallback='') == ''
@@ -149,7 +360,7 @@ class DocumentWorkerConfig(configparser.ConfigParser):
         for section, options in self.REQUIRED.items():
             for option in options:
                 if self.empty_option(section, option):
-                    missing.append((section, option))
+                    missing.append(f'{section}: {option}')
         if len(missing) > 0:
             raise MissingConfigurationError(missing)
 
@@ -171,40 +382,40 @@ class DocumentWorkerConfig(configparser.ConfigParser):
     @property
     def mongo(self) -> MongoConfig:
         return MongoConfig(
-            self.get_or_default(self.MONGO_SECTION, 'host'),
-            self.getint_or_default(self.MONGO_SECTION, 'port'),
-            self.get_or_default(self.MONGO_SECTION, 'username'),
-            self.get_or_default(self.MONGO_SECTION, 'password'),
-            self.get_or_default(self.MONGO_SECTION, 'database'),
-            self.get_or_default(self.MONGO_SECTION, 'collection'),
-            self.get_or_default(self.MONGO_SECTION, 'fs_collection'),
-            self.get_or_default(self.MONGO_SECTION, 'auth_database'),
-            self.get_or_default(self.MONGO_SECTION, 'auth_mechanism'),
+            host=self.get_or_default(self.MONGO_SECTION, 'host'),
+            port=self.getint_or_default(self.MONGO_SECTION, 'port'),
+            database=self.get_or_default(self.MONGO_SECTION, 'database'),
+            collection=self.get_or_default(self.MONGO_SECTION, 'collection'),
+            fs_collection=self.get_or_default(self.MONGO_SECTION, 'fs_collection'),
+            username=self.get_or_default(self.MONGO_SECTION, 'username'),
+            password=self.get_or_default(self.MONGO_SECTION, 'password'),
+            auth_database=self.get_or_default(self.MONGO_SECTION, 'auth_database'),
+            auth_mechanism=self.get_or_default(self.MONGO_SECTION, 'auth_mechanism'),
         )
 
     @property
     def mq(self) -> MQueueConfig:
         return MQueueConfig(
-            self.get_or_default(self.MQ_SECTION, 'host'),
-            self.getint_or_default(self.MQ_SECTION, 'port'),
-            self.get_or_default(self.MQ_SECTION, 'vhost'),
-            self.get_or_default(self.MQ_SECTION, 'username'),
-            self.get_or_default(self.MQ_SECTION, 'password'),
-            self.get_or_default(self.MQ_SECTION, 'queue'),
+            host=self.get_or_default(self.MQ_SECTION, 'host'),
+            port=self.getint_or_default(self.MQ_SECTION, 'port'),
+            vhost=self.get_or_default(self.MQ_SECTION, 'vhost'),
+            queue=self.get_or_default(self.MQ_SECTION, 'queue'),
+            username=self.get_or_default(self.MQ_SECTION, 'username'),
+            password=self.get_or_default(self.MQ_SECTION, 'password'),
         )
 
     @property
     def logging(self) -> LoggingConfig:
         return LoggingConfig(
-            self.get_or_default(self.LOGGING_SECTION, 'level'),
-            self.get_or_default(self.LOGGING_SECTION, 'format'),
+            level=self.get_or_default(self.LOGGING_SECTION, 'level'),
+            message_format=self.get_or_default(self.LOGGING_SECTION, 'format'),
         )
 
     def _command_config(self, section: str) -> CommandConfig:
         return CommandConfig(
-            self.get_or_default(section, 'executable'),
-            self.get_or_default(section, 'args'),
-            self.getfloat_or_default(section, 'timeout'),
+            executable=self.get_or_default(section, 'executable'),
+            args=self.get_or_default(section, 'args'),
+            timeout=self.getfloat_or_default(section, 'timeout'),
         )
 
     @property
