@@ -31,6 +31,8 @@ setup(
         'markdown2',
         'tenacity',
         'PyYAML',
+        'rdflib',
+        'rdflib-jsonld',
     ],
     entry_points={
         'console_scripts': [

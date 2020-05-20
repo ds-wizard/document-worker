@@ -36,6 +36,12 @@ class FileFormats:
     PPTX = FileFormat('pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx')
     RTF = FileFormat('rtf', 'application/rtf', 'rtf')
     ADoc = FileFormat('asciidoc', 'text/asciidoc', 'adoc')
+    RDF_XML = FileFormat('rdf', 'application/rdf+xml', 'rdf')
+    N3 = FileFormat('n3', 'text/n3', 'n3')
+    NTRIPLES = FileFormat('nt', 'application/n-triples', 'nt')
+    TURTLE = FileFormat('ttl', 'text/turtle', 'ttl')
+    TRIG = FileFormat('trig', 'application/trig', 'trig')
+    JSONLD = FileFormat('jsonld', 'application/ld+json', 'jsonld')
 
     @staticmethod
     def get(name: str):
@@ -54,6 +60,16 @@ class FileFormats:
             'pptx': FileFormats.PPTX,
             'rtf': FileFormats.RTF,
             'asciidoc': FileFormats.ADoc,
+            'rdf': FileFormats.RDF_XML,
+            'rdf/xml': FileFormats.RDF_XML,
+            'turtle': FileFormats.TURTLE,
+            'ttl': FileFormats.TURTLE,
+            'n3': FileFormats.N3,
+            'ntriples': FileFormats.NTRIPLES,
+            'n-triples': FileFormats.NTRIPLES,
+            'trig': FileFormats.TRIG,
+            'json-ld': FileFormats.JSONLD,
+            'jsonld': FileFormats.JSONLD,
         }
         return known_formats.get(name, None)
 
