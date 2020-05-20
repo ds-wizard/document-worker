@@ -7,7 +7,7 @@ from typing import Optional
 from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import DEFAULT_ENCODING
 from document_worker.documents import DocumentFile, FileFormat, FileFormats
-from document_worker.conversions import Pandoc, WkHtmlToPdf
+from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert
 
 
 class FormatStepException(Exception):
@@ -150,7 +150,7 @@ class PandocStep(Step):
         if self.input_format not in self.INPUT_FORMATS:
             self.raise_exc(f'Unknown input format "{self.input_format.name}"')
         if self.output_format not in self.OUTPUT_FORMATS:
-            self.raise_exc(f'Unknown input format "{self.output_format.name}"')
+            self.raise_exc(f'Unknown output format "{self.output_format.name}"')
 
     def execute_first(self, context: dict) -> Optional[DocumentFile]:
         return self.raise_exc(f'Step "{self.NAME}" cannot be first')
@@ -164,11 +164,51 @@ class PandocStep(Step):
         return DocumentFile(self.output_format, data)
 
 
+class RdfLibConvertStep(Step):
+    NAME = 'rdflib-convert'
+
+    INPUT_FORMATS = [
+        FileFormats.RDF_XML,
+        FileFormats.N3,
+        FileFormats.NTRIPLES,
+        FileFormats.TURTLE,
+        FileFormats.TRIG,
+        FileFormats.JSONLD,
+    ]
+
+    OUTPUT_FORMATS = INPUT_FORMATS
+
+    OPTION_FROM = 'from'
+    OPTION_TO = 'to'
+
+    def __init__(self, config: DocumentWorkerConfig, template, options: dict):
+        super().__init__(config, template, options)
+        self.rdflib_convert = RdfLibConvert(config)
+        self.input_format = FileFormats.get(options[self.OPTION_FROM])
+        self.output_format = FileFormats.get(options[self.OPTION_TO])
+        if self.input_format not in self.INPUT_FORMATS:
+            self.raise_exc(f'Unknown input format "{self.input_format.name}"')
+        if self.output_format not in self.OUTPUT_FORMATS:
+            self.raise_exc(f'Unknown output format "{self.output_format.name}"')
+
+    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+        return self.raise_exc(f'Step "{self.NAME}" cannot be first')
+
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
+        if document.file_format != self.input_format:
+            self.raise_exc(f'Unexpected input {document.file_format.name} as input for rdflib-convert (expecting {self.input_format.name})')
+        data = self.rdflib_convert(
+            self.input_format, self.output_format, document.content, self.options
+        )
+        return DocumentFile(self.output_format, data)
+
+
 STEPS = {
     JSONStep.NAME: JSONStep,
     Jinja2Step.NAME: Jinja2Step,
     WkHtmlToPdfStep.NAME: WkHtmlToPdfStep,
     PandocStep.NAME: PandocStep,
+    RdfLibConvertStep.NAME: RdfLibConvertStep,
 }
 
 
