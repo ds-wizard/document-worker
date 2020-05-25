@@ -3,7 +3,9 @@ import logging
 import pika
 import shlex
 import yaml
-from typing import List, Tuple
+from typing import List
+
+from document_worker.consts import DocumentNamingStrategy
 
 
 class MissingConfigurationError(Exception):
@@ -107,6 +109,16 @@ class LoggingConfig:
                f'- message_format = {self.message_format} ({type(self.message_format)})\n'
 
 
+class DocumentsConfig:
+
+    def __init__(self, naming_strategy: str):
+        self.naming_strategy = DocumentNamingStrategy.get(naming_strategy)
+
+    def __str__(self):
+        return f'DocumentsConfig\n' \
+               f'- naming_strategy = {self.naming_strategy}\n'
+
+
 class CommandConfig:
 
     def __init__(self, executable: str, args: str, timeout: float):
@@ -128,16 +140,18 @@ class CommandConfig:
 class DocumentWorkerConfig:
 
     def __init__(self, cfg_parser):
-        self.mongo = cfg_parser.mongo
-        self.mq = cfg_parser.mq
-        self.logging = cfg_parser.logging
-        self.pandoc = cfg_parser.pandoc
-        self.wkhtmltopdf = cfg_parser.wkhtmltopdf
+        self.mongo = cfg_parser.mongo  # type: MongoConfig
+        self.mq = cfg_parser.mq  # type: MQueueConfig
+        self.logging = cfg_parser.logging  # type: LoggingConfig
+        self.documents = cfg_parser.documents  # type: DocumentsConfig
+        self.pandoc = cfg_parser.pandoc  # type: CommandConfig
+        self.wkhtmltopdf = cfg_parser.wkhtmltopdf  # type: CommandConfig
 
     def __str__(self):
         return f'{str(self.mongo)}\n' \
                f'{str(self.mq)}\n' \
                f'{str(self.logging)}\n' \
+               f'{str(self.documents)}\n' \
                f'{str(self.pandoc)}\n' \
                f'{str(self.wkhtmltopdf)}\n'
 
@@ -149,6 +163,8 @@ class DocumentWorkerYMLConfigParser:
     MQ_SECTION = 'mq'
     MQ_AUTH_SUBSECTION = 'auth'
     LOGGING_SECTION = 'logging'
+    DOCS_SECTION = 'documents'
+    DOCS_NAMING_SUBSECTION = 'naming'
     EXTERNAL_SECTION = 'externals'
     PANDOC_SUBSECTION = 'pandoc'
     WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
@@ -179,6 +195,11 @@ class DocumentWorkerYMLConfigParser:
         LOGGING_SECTION: {
             'level': 'WARNING',
             'format': '%(asctime)s | %(levelname)s | %(module)s: %(message)s',
+        },
+        DOCS_SECTION: {
+            DOCS_NAMING_SUBSECTION: {
+                'strategy': 'sanitize'
+            }
         },
         EXTERNAL_SECTION: {
             PANDOC_SUBSECTION: {
@@ -277,6 +298,12 @@ class DocumentWorkerYMLConfigParser:
             message_format=self.get_or_default(self.LOGGING_SECTION, 'format'),
         )
 
+    @property
+    def documents(self) -> DocumentsConfig:
+        return DocumentsConfig(
+            naming_strategy=self.get_or_default(self.DOCS_SECTION, self.DOCS_NAMING_SUBSECTION, 'strategy')
+        )
+
     def _command_config(self, *path: str) -> CommandConfig:
         return CommandConfig(
             executable=self.get_or_default(*path, 'executable'),
@@ -298,6 +325,7 @@ class DocumentWorkerCFGConfigParser(configparser.ConfigParser):
     MONGO_SECTION = 'mongo'
     MQ_SECTION = 'mq'
     LOGGING_SECTION = 'logging'
+    DOCS_SECTION = 'documents'
     PANDOC_SECTION = 'pandoc'
     WKHTMLTOPDF_SECTION = 'wkhtmltopdf'
 
@@ -323,6 +351,9 @@ class DocumentWorkerCFGConfigParser(configparser.ConfigParser):
         LOGGING_SECTION: {
             'level': logging.WARNING,
             'format': '%(asctime)s | %(levelname)s | %(module)s: %(message)s',
+        },
+        DOCS_SECTION: {
+            'naming_strategy': 'sanitize'
         },
         PANDOC_SECTION: {
             'executable': 'pandoc',
@@ -409,6 +440,12 @@ class DocumentWorkerCFGConfigParser(configparser.ConfigParser):
         return LoggingConfig(
             level=self.get_or_default(self.LOGGING_SECTION, 'level'),
             message_format=self.get_or_default(self.LOGGING_SECTION, 'format'),
+        )
+
+    @property
+    def documents(self) -> DocumentsConfig:
+        return DocumentsConfig(
+            naming_strategy=self.get_or_default(self.DOCS_SECTION, 'naming_strategy')
         )
 
     def _command_config(self, section: str) -> CommandConfig:

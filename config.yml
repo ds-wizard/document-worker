@@ -22,6 +22,10 @@ mq:
 logging:
   level: INFO
 
+documents:
+  naming:
+    strategy: sanitize # uuid|slugify|sanitize
+
 externals:
   pandoc:
     executable: pandoc

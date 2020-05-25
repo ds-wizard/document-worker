@@ -12,6 +12,8 @@ import tenacity
 from typing import Optional
 
 from document_worker.config import DocumentWorkerConfig
+from document_worker.consts import JobDataField, DocumentField, DocumentState
+from document_worker.documents import DocumentFile, DocumentNameGiver
 from document_worker.templates import TemplateRegistry
 
 RETRY_MONGO_MULTIPLIER = 0.5
@@ -25,30 +27,6 @@ class JobException(Exception):
     def __init__(self, job_id: str, message: str):
         self.job_id = job_id
         self.message = message
-
-
-class DocumentState:
-    QUEUED = 'QueuedDocumentState'
-    PROCESSING = 'InProgressDocumentState'
-    FAILED = 'ErrorDocumentState'
-    FINISHED = 'DoneDocumentState'
-
-
-class DocumentField:
-    UUID = 'uuid'
-    STATE = 'state'
-    TEMPLATE = 'templateUuid'
-    FORMAT = 'formatUuid'
-    RETRIEVED = 'retrievedAt'
-    FINISHED = 'finishedAt'
-    METADATA = 'metadata'
-    METADATA_CONTENT_TYPE = 'contentType'
-    METADATA_FILENAME = 'fileName'
-
-
-class JobDataField:
-    DOCUMENT_UUID = 'documentUuid'
-    DOCUMENT_CONTEXT = 'documentContext'
 
 
 def handle_job_step(message):
@@ -67,6 +45,15 @@ def handle_job_step(message):
     return decorator
 
 
+class JobContext:
+
+    def __init__(self, config: DocumentWorkerConfig, template_registry: TemplateRegistry,
+                 name_giver: DocumentNameGiver):
+        self.config = config
+        self.template_registry = template_registry
+        self.name_giver = name_giver
+
+
 class Job:
 
     DOCUMENT_FIELDS = [
@@ -75,19 +62,20 @@ class Job:
         DocumentField.FORMAT,
     ]
 
-    def __init__(self, config: DocumentWorkerConfig, template_registry: TemplateRegistry):
-        self.config = config
-        self.template_registry = template_registry
-        self.mongo_client = pymongo.MongoClient(**config.mongo.mongo_client_kwargs)
-        self.mongo_db = self.mongo_client[config.mongo.database]
-        self.mongo_collection = self.mongo_db[config.mongo.collection]
-        self.mongo_fs = gridfs.GridFS(self.mongo_db, config.mongo.fs_collection)
+    def __init__(self, ctx: JobContext):
+        self.config = ctx.config
+        self.template_registry = ctx.template_registry
+        self.name_giver = ctx.name_giver
+        self.mongo_client = pymongo.MongoClient(**ctx.config.mongo.mongo_client_kwargs)
+        self.mongo_db = self.mongo_client[ctx.config.mongo.database]
+        self.mongo_collection = self.mongo_db[ctx.config.mongo.collection]
+        self.mongo_fs = gridfs.GridFS(self.mongo_db, ctx.config.mongo.fs_collection)
 
         self.doc_uuid = 'unknown'
         self.doc_context = dict()
         self.doc_filter = None  # type: Optional[dict]
         self.doc = None  # type: Optional[dict]
-        self.final_file = None  # type: Optional[DocumentField]
+        self.final_file = None  # type: Optional[DocumentFile]
 
     def raise_exc(self, message: str):
         raise JobException(self.doc_uuid, message)
@@ -188,12 +176,13 @@ class Job:
 
     def finalize(self):
         document_uuid = self.doc[DocumentField.UUID]
+        filename = self.name_giver.name_document(self.doc, self.final_file)
         self._modify_doc({
             DocumentField.FINISHED: datetime.datetime.utcnow(),
             DocumentField.STATE: DocumentState.FINISHED,
             DocumentField.METADATA: {
                 DocumentField.METADATA_CONTENT_TYPE: self.final_file.content_type,
-                DocumentField.METADATA_FILENAME: self.final_file.filename(document_uuid)
+                DocumentField.METADATA_FILENAME: filename
             }
         })
         logging.info(f'Document {document_uuid} record finalized')
@@ -217,6 +206,11 @@ class DocumentWorker:
         self.template_registry = TemplateRegistry(config, templates_dir)
         self._prepare_logging()
         self.template_registry.load_templates()
+        self.job_context = JobContext(
+            config=self.config,
+            template_registry=self.template_registry,
+            name_giver=DocumentNameGiver(self.config)
+        )
 
     def _prepare_logging(self):
         logging.basicConfig(
@@ -250,7 +244,7 @@ class DocumentWorker:
 
     def _callback(self, ch, method, properties, body):
         logging.info(f'Received a job')
-        job = Job(self.config, self.template_registry)
+        job = Job(self.job_context)
         try:
             job.process_body(body)
             job.connect_mongo()

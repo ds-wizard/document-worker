@@ -25,14 +25,16 @@ setup(
     python_requires='>=3.8, <4',
     install_requires=[
         'click',
-        'pika',
-        'pymongo',
         'jinja2',
         'markdown2',
-        'tenacity',
+        'pathvalidate',
+        'pika',
+        'pymongo',
         'PyYAML',
         'rdflib',
         'rdflib-jsonld',
+        'python-slugify',
+        'tenacity',
     ],
     entry_points={
         'console_scripts': [
