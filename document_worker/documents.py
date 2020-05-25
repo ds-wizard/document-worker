@@ -1,4 +1,8 @@
-from document_worker.consts import DEFAULT_ENCODING
+import pathvalidate
+import slugify
+
+from document_worker.consts import DEFAULT_ENCODING, DocumentField, DocumentNamingStrategy
+from document_worker.config import DocumentWorkerConfig
 
 
 class FileFormat:
@@ -91,3 +95,38 @@ class DocumentFile:
     def store(self, name: str):
         with open(self.filename(name), mode='bw') as f:
             f.write(self.content)
+
+
+def _name_uuid(document_metadata: dict) -> str:
+    return document_metadata[DocumentField.UUID]
+
+
+def _name_sanitize(document_metadata: dict) -> str:
+    name = pathvalidate.sanitize_filename(document_metadata[DocumentField.NAME])
+    if len(name) == 0:
+        name = document_metadata[DocumentField.UUID]
+    return name
+
+
+def _name_slugify(document_metadata: dict) -> str:
+    name = slugify.slugify(document_metadata[DocumentField.NAME])
+    if len(name) == 0:
+        name = document_metadata[DocumentField.UUID]
+    return name
+
+
+class DocumentNameGiver:
+
+    _FALLBACK = _name_uuid
+    _STRATEGIES = {
+        DocumentNamingStrategy.UUID: _name_uuid,
+        DocumentNamingStrategy.SANITIZE: _name_sanitize,
+        DocumentNamingStrategy.SLUGIFY: _name_slugify,
+    }
+
+    def __init__(self, config: DocumentWorkerConfig):
+        self.config = config
+        self.strategy = self._STRATEGIES.get(self.config.documents.naming_strategy, self._FALLBACK)
+
+    def name_document(self, document_metadata: dict, document_file: DocumentFile) -> str:
+        return document_file.filename(self.strategy(document_metadata))
