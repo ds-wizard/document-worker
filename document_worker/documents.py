@@ -1,4 +1,8 @@
-from document_worker.consts import DEFAULT_ENCODING
+import pathvalidate
+import slugify
+
+from document_worker.consts import DEFAULT_ENCODING, DocumentField, DocumentNamingStrategy
+from document_worker.config import DocumentWorkerConfig
 
 
 class FileFormat:
@@ -36,6 +40,12 @@ class FileFormats:
     PPTX = FileFormat('pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx')
     RTF = FileFormat('rtf', 'application/rtf', 'rtf')
     ADoc = FileFormat('asciidoc', 'text/asciidoc', 'adoc')
+    RDF_XML = FileFormat('rdf', 'application/rdf+xml', 'rdf')
+    N3 = FileFormat('n3', 'text/n3', 'n3')
+    NTRIPLES = FileFormat('nt', 'application/n-triples', 'nt')
+    TURTLE = FileFormat('ttl', 'text/turtle', 'ttl')
+    TRIG = FileFormat('trig', 'application/trig', 'trig')
+    JSONLD = FileFormat('jsonld', 'application/ld+json', 'jsonld')
 
     @staticmethod
     def get(name: str):
@@ -54,6 +64,16 @@ class FileFormats:
             'pptx': FileFormats.PPTX,
             'rtf': FileFormats.RTF,
             'asciidoc': FileFormats.ADoc,
+            'rdf': FileFormats.RDF_XML,
+            'rdf/xml': FileFormats.RDF_XML,
+            'turtle': FileFormats.TURTLE,
+            'ttl': FileFormats.TURTLE,
+            'n3': FileFormats.N3,
+            'ntriples': FileFormats.NTRIPLES,
+            'n-triples': FileFormats.NTRIPLES,
+            'trig': FileFormats.TRIG,
+            'json-ld': FileFormats.JSONLD,
+            'jsonld': FileFormats.JSONLD,
         }
         return known_formats.get(name, None)
 
@@ -75,3 +95,38 @@ class DocumentFile:
     def store(self, name: str):
         with open(self.filename(name), mode='bw') as f:
             f.write(self.content)
+
+
+def _name_uuid(document_metadata: dict) -> str:
+    return document_metadata[DocumentField.UUID]
+
+
+def _name_sanitize(document_metadata: dict) -> str:
+    name = pathvalidate.sanitize_filename(document_metadata[DocumentField.NAME])
+    if len(name) == 0:
+        name = document_metadata[DocumentField.UUID]
+    return name
+
+
+def _name_slugify(document_metadata: dict) -> str:
+    name = slugify.slugify(document_metadata[DocumentField.NAME])
+    if len(name) == 0:
+        name = document_metadata[DocumentField.UUID]
+    return name
+
+
+class DocumentNameGiver:
+
+    _FALLBACK = _name_uuid
+    _STRATEGIES = {
+        DocumentNamingStrategy.UUID: _name_uuid,
+        DocumentNamingStrategy.SANITIZE: _name_sanitize,
+        DocumentNamingStrategy.SLUGIFY: _name_slugify,
+    }
+
+    def __init__(self, config: DocumentWorkerConfig):
+        self.config = config
+        self.strategy = self._STRATEGIES.get(self.config.documents.naming_strategy, self._FALLBACK)
+
+    def name_document(self, document_metadata: dict, document_file: DocumentFile) -> str:
+        return document_file.filename(self.strategy(document_metadata))

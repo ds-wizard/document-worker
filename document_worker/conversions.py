@@ -1,10 +1,11 @@
 import logging
+import rdflib
 import shlex
 import subprocess
 
 from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import EXIT_SUCCESS, DEFAULT_ENCODING
-from document_worker.documents import FileFormat
+from document_worker.documents import FileFormat, FileFormats
 
 
 def run_conversion(args: list, input_data: bytes, name: str,
@@ -74,3 +75,29 @@ class Pandoc:
     @staticmethod
     def extract_template_args(metadata: dict):
         return shlex.split(metadata.get('args', ''))
+
+
+class RdfLibConvert:
+
+    FORMATS = {
+        FileFormats.RDF_XML: 'xml',
+        FileFormats.N3: 'n3',
+        FileFormats.NTRIPLES: 'ntriples',
+        FileFormats.TURTLE: 'turtle',
+        FileFormats.TRIG: 'trig',
+        FileFormats.JSONLD: 'json-ld',
+    }
+
+    def __init__(self, config: DocumentWorkerConfig = None):
+        self.config = config
+
+    def __call__(self, source_format: FileFormat, target_format: FileFormat,
+                 data: bytes, metadata: dict) -> bytes:
+        g = rdflib.Graph().parse(
+            data=data.decode(DEFAULT_ENCODING),
+            format=self.FORMATS.get(source_format)
+        )
+        result = g.serialize(
+            format=self.FORMATS.get(target_format)
+        )
+        return result

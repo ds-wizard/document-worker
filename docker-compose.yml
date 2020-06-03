@@ -6,4 +6,4 @@ services:
       dockerfile: Dockerfile
     volumes:
       - './examples/templates:/app/templates:ro'
-      - './config.cfg:/app/config.cfg:ro'
+      - './config.yml:/app/config.yml:ro'

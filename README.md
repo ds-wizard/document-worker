@@ -45,7 +45,7 @@ $ docker build . -t docworker:local
 
 ### Mount points
 
--  `/app/config.cfg` = configuration file (see [example](config.cfg))
+-  `/app/config.yml` = configuration file (see [example](config.yml))
 -  `/app/templates` = directory with templates
 -  `/usr/share/fonts/<type>/<name>` = fonts according to [Debian wiki](https://wiki.debian.org/Fonts/PackagingPolicy) (for wkhtmltopdf)
 

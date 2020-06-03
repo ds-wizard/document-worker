@@ -1,0 +1,37 @@
+mongo:
+  host: localhost
+  port: 27017
+  database: test_db
+  collection: documents
+  fs_collection: documentFs
+#  auth:
+#    username:
+#    password:
+#    database: (database)
+#    mechanism: SCRAM-SHA-256
+
+mq:
+  host: localhost
+  port: 5672
+  vhost: /
+  queue: test_queue
+#  auth:
+#    username:
+#    password:
+
+logging:
+  level: INFO
+
+documents:
+  naming:
+    strategy: sanitize # uuid|slugify|sanitize
+
+externals:
+  pandoc:
+    executable: pandoc
+    args: --standalone
+#    timeout:
+  wkhtmltopdf:
+    executable: wkhtmltopdf
+    args:
+#    timeout:
