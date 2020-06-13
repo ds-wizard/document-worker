@@ -1,56 +1,45 @@
-import json
 import logging
-import os
+import pymongo
 import uuid
 import typing
 
+from document_worker.consts import TemplateField
 from document_worker.documents import DocumentFile
 from document_worker.templates.formats import Format
 
 
 class TemplateException(Exception):
 
-    def __init__(self, template_metafile: str, template_uuid: uuid.UUID, message: str):
-        self.template_metafile = template_metafile
-        self.template_uuid = template_uuid
+    def __init__(self, template_id: str, message: str):
+        self.template_id = template_id
         self.message = message
-
-
-class TemplateMetaField:
-    UUID = 'uuid'
-    NAME = 'name'
-    FORMATS = 'formats'
 
 
 class Template:
 
-    META_REQUIRED = [TemplateMetaField.UUID,
-                     TemplateMetaField.NAME,
-                     TemplateMetaField.FORMATS]
+    META_REQUIRED = [TemplateField.ID,
+                     TemplateField.NAME,
+                     TemplateField.METAMODEL_VERSION,
+                     TemplateField.FORMATS,
+                     TemplateField.FILES]
 
-    def __init__(self, config, meta_file: str):
+    def __init__(self, config, template_id: str, template_data: dict):
         self.config = config
-        self.meta_file = meta_file
-        self.uuid = None
-        logging.info(f'Loading metadata from {meta_file}')
-        self.metadata = self._load_metadata()
-        logging.info(f'Verifying metadata from {meta_file}')
+        self.template_id = template_id
+        logging.info(f'Loading {template_id}')
+        self.metadata = template_data
+        logging.info(f'Verifying {template_id}')
         self._verify_metadata()
-        self.uuid = uuid.UUID(self.metadata[TemplateMetaField.UUID])
-        self.name = self.metadata[TemplateMetaField.NAME]
-        self.basedir = os.path.dirname(meta_file)
-        logging.info(f'Setting up formats for template "{self.name}" ({self.uuid})')
+        self.name = self.metadata[TemplateField.NAME]
+        logging.info(f'Setting up formats for template {self.template_id}')
         self.formats = self._load_formats()
 
-    def raise_exc(self, message: str):
-        raise TemplateException(self.meta_file, self.uuid, message)
+    @property
+    def files(self):
+        return self.metadata[TemplateField.FILES]
 
-    def _load_metadata(self) -> dict:
-        try:
-            with open(self.meta_file, mode='r') as f:
-                return json.load(f)
-        except Exception as e:
-            self.raise_exc(f'Cannot read template meta file: {e}')
+    def raise_exc(self, message: str):
+        raise TemplateException(self.template_id, message)
 
     def _verify_metadata(self):
         for required_field in self.META_REQUIRED:
@@ -59,11 +48,11 @@ class Template:
 
     def _load_formats(self) -> typing.Dict[uuid.UUID, Format]:
         valid_formats = []
-        for index, format_meta in enumerate(self.metadata[TemplateMetaField.FORMATS]):
+        for index, format_meta in enumerate(self.metadata[TemplateField.FORMATS]):
             try:
                 valid_formats.append(Format(self, format_meta))
             except Exception as e:
-                logging.error(f'Format #{index} of template "{self.name}" '
+                logging.error(f'Format #{index} of template {self.template_id} '
                               f'cannot be loaded - {e}')
         return {f.uuid: f for f in valid_formats}
 
@@ -79,44 +68,14 @@ class Template:
 
 class TemplateRegistry:
 
-    META_FILE = 'template.json'
-
-    def __init__(self, config, templates_dir):
+    def __init__(self, config):
         self.config = config
-        self.templates_dir = templates_dir
-        self.templates = dict()
+        self.mongo_client = pymongo.MongoClient(**self.config.mongo.mongo_client_kwargs)
+        self.mongo_db = self.mongo_client[self.config.mongo.database]
+        self.mongo_collection = self.mongo_db[self.config.mongo.templates_collection]
 
-    def load_templates(self):
-        logging.info(f'Loading document templates from {self.templates_dir}')
-        for root, dirs, files in os.walk(self.templates_dir):
-            for filename in files:
-                if filename == self.META_FILE:
-                    self._load_template(os.path.join(root, filename))
-
-    def _load_template(self, meta_file: str):
-        try:
-            template = Template(self.config, meta_file)
-            if template.uuid in self.templates:
-                logging.warning(f'Duplicate template UUID {template.uuid}'
-                                f' - ignoring {meta_file}')
-            else:
-                self.templates[template.uuid] = template
-                logging.info(f'Template from {meta_file} loaded (UUID: {template.uuid})')
-        except TemplateException as e:
-            logging.error(f'Template from {meta_file} (UUID: {e.template_uuid}) '
-                          f'cannot be loaded - {e.message}')
-        except Exception as e:
-            logging.error(f'Template from {meta_file} '
-                          f'cannot be loaded - {type(e).__name__}: {e}')
-
-    def has_template(self, template_uuid: uuid.UUID) -> bool:
-        return template_uuid in self.templates.keys()
-
-    def has_format(self, template_uuid: uuid.UUID, format_uuid: uuid.UUID) -> bool:
-        return self.has_template(template_uuid) and self[template_uuid].has_format(format_uuid)
-
-    def __getitem__(self, template_uuid: uuid.UUID) -> Template:
-        return self.templates[template_uuid]
-
-    def render(self, template_uuid: uuid.UUID, format_uuid: uuid.UUID, context: dict) -> DocumentFile:
-        return self[template_uuid].render(format_uuid, context)
+    def get_template(self, template_id: str) -> typing.Optional[Template]:
+        template_data = self.mongo_collection.find_one({TemplateField.ID: template_id})
+        return None if template_data is None else Template(
+            self.config, template_id, template_data
+        )

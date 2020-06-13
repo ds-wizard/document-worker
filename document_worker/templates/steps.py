@@ -6,8 +6,9 @@ from typing import Optional
 
 from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import DEFAULT_ENCODING
-from document_worker.documents import DocumentFile, FileFormat, FileFormats
 from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert
+from document_worker.documents import DocumentFile, FileFormat, FileFormats
+from document_worker.templates.loaders import TemplateFileLoader
 
 
 class FormatStepException(Exception):
@@ -63,15 +64,13 @@ class Jinja2Step(Step):
         self.extension = self.options.get(self.OPTION_EXTENSION, self.DEFAULT_FORMAT.file_extension)
 
         self.output_format = FileFormat(self.extension, self.content_type, self.extension)
-        self.root_dir = os.path.dirname(os.path.join(self.template.basedir, self.root_file))
-        self.root_filename = os.path.basename(self.root_file)
         try:
             self.j2_env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(self.root_dir),
+                loader=TemplateFileLoader(config, template),
                 extensions=['jinja2.ext.do'],
             )
             self._add_j2_enhancements()
-            self.j2_root_template = self.j2_env.get_template(self.root_filename)
+            self.j2_root_template = self.j2_env.get_template(self.root_file)
         except Exception as e:
             self.raise_exc(f'Failed loading Jinja2 template: {e}')
 

@@ -24,4 +24,4 @@ COPY . /app
 
 RUN python setup.py install
 
-CMD ["docworker", "/app/config.yml", "/app/templates"]
+CMD ["docworker", "/app/config.yml"]

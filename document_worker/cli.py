@@ -30,9 +30,8 @@ def validate_config(ctx, param, value: IO):
 
 @click.command(name='docworker')
 @click.argument('config', type=click.File('r'), callback=validate_config)
-@click.argument('templates_dir', type=click.Path(exists=True, file_okay=False, dir_okay=True))
-def main(config: DocumentWorkerConfig, templates_dir):
-    worker = DocumentWorker(config, templates_dir)
+def main(config: DocumentWorkerConfig):
+    worker = DocumentWorker(config)
     try:
         worker.run()
     except Exception as e:
