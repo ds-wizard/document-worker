@@ -142,7 +142,7 @@ class Job:
             self.raise_exc(f'Template {template_id} not found')
         # verify format
         format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
-        if not self.template.has_format(format_uuid):
+        if not self.template.prepare_format(format_uuid):
             self.raise_exc(f'Format {format_uuid} (in template {template_id}) not found')
 
     @handle_job_step('Failed to build final document')

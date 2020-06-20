@@ -3,7 +3,7 @@ import pymongo
 import uuid
 import typing
 
-from document_worker.consts import TemplateField
+from document_worker.consts import TemplateField, FormatField
 from document_worker.documents import DocumentFile
 from document_worker.templates.formats import Format
 
@@ -32,7 +32,7 @@ class Template:
         self._verify_metadata()
         self.name = self.metadata[TemplateField.NAME]
         logging.info(f'Setting up formats for template {self.template_id}')
-        self.formats = self._load_formats()
+        self.formats = dict()
 
     @property
     def files(self):
@@ -46,18 +46,23 @@ class Template:
             if required_field not in self.metadata:
                 self.raise_exc(f'Missing required field {required_field}')
 
-    def _load_formats(self) -> typing.Dict[uuid.UUID, Format]:
-        valid_formats = []
-        for index, format_meta in enumerate(self.metadata[TemplateField.FORMATS]):
-            try:
-                valid_formats.append(Format(self, format_meta))
-            except Exception as e:
-                logging.error(f'Format #{index} of template {self.template_id} '
-                              f'cannot be loaded - {e}')
-        return {f.uuid: f for f in valid_formats}
+    def prepare_format(self, format_uuid: uuid.UUID) -> bool:
+        str_uuid = str(format_uuid)
+        for format_meta in self.metadata[TemplateField.FORMATS]:
+            if str_uuid == format_meta[FormatField.UUID]:
+                try:
+                    self.formats[format_uuid] = Format(self, format_meta)
+                except Exception as e:
+                    logging.error(f'Format {str_uuid} of template {self.template_id} '
+                                  f'cannot be loaded - {e}')
+                return True
+        return False
 
     def has_format(self, format_uuid: uuid.UUID) -> bool:
-        return format_uuid in self.formats.keys()
+        return any(map(
+            lambda f: f[FormatField.UUID] == format_uuid,
+            self.metadata[TemplateField.FORMATS]
+        ))
 
     def __getitem__(self, format_uuid: uuid.UUID) -> Format:
         return self.formats[format_uuid]
