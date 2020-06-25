@@ -27,6 +27,12 @@ class TemplateFileField:
     CONTENT = 'content'
 
 
+class TemplateAssetField:
+    UUID = 'uuid'
+    FILENAME = 'fileName'
+    CONTENT_TYPE = 'contentType'
+
+
 class FormatField:
     UUID = 'uuid'
     NAME = 'name'
@@ -44,6 +50,7 @@ class TemplateField:
     METAMODEL_VERSION = 'metamodelVersion'
     FILES = 'files'
     FORMATS = 'formats'
+    ASSETS = 'assets'
 
 
 class JobDataField:

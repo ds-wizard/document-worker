@@ -24,4 +24,9 @@ COPY . /app
 
 RUN python setup.py install
 
-CMD ["docworker", "/app/config.yml"]
+ENV DOCWORKER_CONFIG /app/config.yml
+ENV DOCWORKER_WORKDIR /tmp/docworker
+
+RUN mkdir /tmp/docworker
+
+CMD ["docworker"]

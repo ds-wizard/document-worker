@@ -109,7 +109,7 @@ class LoggingConfig:
         self.message_format = message_format
 
     def __str__(self):
-        return f'MQueueConfig\n' \
+        return f'LoggingConfig\n' \
                f'- level = {self.level} ({type(self.level)})\n' \
                f'- message_format = {self.message_format} ({type(self.message_format)})\n'
 

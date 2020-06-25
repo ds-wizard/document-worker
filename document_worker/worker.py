@@ -123,8 +123,8 @@ class Job:
             self.raise_exc(f'Document "{self.doc_uuid}" not found')
         logging.info(f'Job "{self.doc_uuid}" details received')
 
-    @handle_job_step('Failed to verify job details')
-    def verify_job(self):
+    @handle_job_step('Failed to prepare job')
+    def prepare_job(self):
         logging.info(f'Verifying the received job "{self.doc_uuid}" details')
         # verify fields
         for field in self.DOCUMENT_FIELDS:
@@ -135,12 +135,12 @@ class Job:
         logging.info(f'Original state of job is {state}')
         if state == DocumentState.FINISHED:
             self.raise_exc(f'Job is already finished')
-        # verify template
+        # prepare template
         template_id = self.doc[DocumentField.TEMPLATE]
         self.template = self.template_registry.get_template(template_id)
         if self.template is None:
             self.raise_exc(f'Template {template_id} not found')
-        # verify format
+        # prepare format
         format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
         if not self.template.prepare_format(format_uuid):
             self.raise_exc(f'Format {format_uuid} (in template {template_id}) not found')
@@ -202,9 +202,9 @@ class Job:
 
 class DocumentWorker:
 
-    def __init__(self, config: DocumentWorkerConfig):
+    def __init__(self, config: DocumentWorkerConfig, workdir: str):
         self.config = config
-        self.template_registry = TemplateRegistry(config)
+        self.template_registry = TemplateRegistry(config, workdir)
         self._prepare_logging()
         self.job_context = JobContext(
             config=self.config,
@@ -249,7 +249,7 @@ class DocumentWorker:
             job.process_body(body)
             job.connect_mongo()
             job.get_job()
-            job.verify_job()
+            job.prepare_job()
             job.set_job_state(DocumentState.PROCESSING)
             job.build_document()
             job.store_document()
