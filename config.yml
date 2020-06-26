@@ -1,20 +1,22 @@
 mongo:
-  host: localhost
-  port: 27017
-  database: test_db
-  collection: documents
-  fs_collection: documentFs
+#  host: localhost
+#  port: 27017
+  database: engine-wizard
+#  collection: documents
+#  fs_collection: documentFs
+#  templates_collection: templates
+#  assets_fs_collection: templateAssetFs
 #  auth:
 #    username:
 #    password:
 #    database: (database)
 #    mechanism: SCRAM-SHA-256
 
-mq:
-  host: localhost
-  port: 5672
-  vhost: /
-  queue: test_queue
+#mq:
+#  host: localhost
+#  port: 5672
+#  vhost: /
+#  queue: document.generation
 #  auth:
 #    username:
 #    password:
@@ -22,16 +24,16 @@ mq:
 logging:
   level: INFO
 
-documents:
-  naming:
-    strategy: sanitize # uuid|slugify|sanitize
+#documents:
+#  naming:
+#    strategy: sanitize # uuid|slugify|sanitize
 
-externals:
-  pandoc:
-    executable: pandoc
-    args: --standalone
+#externals:
+#  pandoc:
+#    executable: pandoc
+#    args: --standalone
 #    timeout:
-  wkhtmltopdf:
-    executable: wkhtmltopdf
-    args:
+#  wkhtmltopdf:
+#    executable: wkhtmltopdf
+#    args:
 #    timeout:

@@ -18,12 +18,15 @@ class MongoConfig:
 
     def __init__(self, host: str, port: int, username: str, password: str,
                  database: str, collection: str, fs_collection: str,
+                 templates_collection: str, assets_fs_collection: str,
                  auth_database: str, auth_mechanism: str):
         self.host = host
         self.port = port
         self.database = database
         self.collection = collection
         self.fs_collection = fs_collection
+        self.templates_collection = templates_collection
+        self.assets_fs_collection = assets_fs_collection
         self.username = username
         self.password = password
         self.auth_database = auth_database
@@ -36,6 +39,8 @@ class MongoConfig:
                f'- database = {self.database} ({type(self.database)})\n' \
                f'- collection = {self.collection} ({type(self.collection)})\n' \
                f'- fs_collection = {self.fs_collection} ({type(self.fs_collection)})\n' \
+               f'- templates_collection = {self.templates_collection} ({type(self.templates_collection)})\n' \
+               f'- assets_fs_collection = {self.assets_fs_collection} ({type(self.assets_fs_collection)})\n' \
                f'- username = {self.username} ({type(self.username)})\n' \
                f'- password = {self.password} ({type(self.password)})\n' \
                f'- auth_database = {self.auth_database} ({type(self.auth_database)})\n' \
@@ -104,7 +109,7 @@ class LoggingConfig:
         self.message_format = message_format
 
     def __str__(self):
-        return f'MQueueConfig\n' \
+        return f'LoggingConfig\n' \
                f'- level = {self.level} ({type(self.level)})\n' \
                f'- message_format = {self.message_format} ({type(self.message_format)})\n'
 
@@ -175,6 +180,8 @@ class DocumentWorkerYMLConfigParser:
             'port': 27017,
             'collection': 'documents',
             'fs_collection': 'documentFs',
+            'templates_collection': 'templates',
+            'assets_fs_collection': 'templateAssetFs',
             MONGO_AUTH_SUBSECTION: {
                 'username': None,
                 'password': None,
@@ -274,6 +281,8 @@ class DocumentWorkerYMLConfigParser:
             database=self.get_or_default(self.MONGO_SECTION, 'database'),
             collection=self.get_or_default(self.MONGO_SECTION, 'collection'),
             fs_collection=self.get_or_default(self.MONGO_SECTION, 'fs_collection'),
+            templates_collection=self.get_or_default(self.MONGO_SECTION, 'templates_collection'),
+            assets_fs_collection=self.get_or_default(self.MONGO_SECTION, 'assets_fs_collection'),
             username=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'username'),
             password=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'password'),
             auth_database=self.get_or_default(self.MONGO_SECTION, self.MONGO_AUTH_SUBSECTION, 'database'),
@@ -337,6 +346,8 @@ class DocumentWorkerCFGConfigParser(configparser.ConfigParser):
             'password': None,
             'collection': 'documents',
             'fs_collection': 'documentFs',
+            'templates_collection': 'templates',
+            'assets_fs_collection': 'templateAssetFs',
             'auth_database': None,
             'auth_mechanism': 'SCRAM-SHA-256'
         },
@@ -418,6 +429,8 @@ class DocumentWorkerCFGConfigParser(configparser.ConfigParser):
             database=self.get_or_default(self.MONGO_SECTION, 'database'),
             collection=self.get_or_default(self.MONGO_SECTION, 'collection'),
             fs_collection=self.get_or_default(self.MONGO_SECTION, 'fs_collection'),
+            templates_collection=self.get_or_default(self.MONGO_SECTION, 'templates_collection'),
+            assets_fs_collection=self.get_or_default(self.MONGO_SECTION, 'assets_fs_collection'),
             username=self.get_or_default(self.MONGO_SECTION, 'username'),
             password=self.get_or_default(self.MONGO_SECTION, 'password'),
             auth_database=self.get_or_default(self.MONGO_SECTION, 'auth_database'),
