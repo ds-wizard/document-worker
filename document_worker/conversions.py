@@ -8,11 +8,12 @@ from document_worker.consts import EXIT_SUCCESS, DEFAULT_ENCODING
 from document_worker.documents import FileFormat, FileFormats
 
 
-def run_conversion(args: list, input_data: bytes, name: str,
+def run_conversion(*, args: list, workdir: str, input_data: bytes, name: str,
                    source_format: FileFormat, target_format: FileFormat, timeout=None) -> bytes:
     command = ' '.join(args)
     logging.info(f'Calling "{command}" to convert from {source_format} to {target_format}')
     p = subprocess.Popen(args,
+                         cwd=workdir,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
@@ -44,12 +45,17 @@ class WkHtmlToPdf:
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
-                 data: bytes, metadata: dict) -> bytes:
+                 data: bytes, metadata: dict, workdir: str) -> bytes:
         template_args = self.extract_template_args(metadata)
         command = self.config.wkhtmltopdf.command + self.ARGS1 + template_args + self.ARGS2
         return run_conversion(
-            command, data, type(self).__name__, source_format, target_format,
-            timeout=self.config.wkhtmltopdf.timeout
+            args=command,
+            workdir=workdir,
+            input_data=data,
+            name=type(self).__name__,
+            source_format=source_format,
+            target_format=target_format,
+            timeout=self.config.wkhtmltopdf.timeout,
         )
 
     @staticmethod
@@ -63,13 +69,18 @@ class Pandoc:
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
-                 data: bytes, metadata: dict) -> bytes:
+                 data: bytes, metadata: dict, workdir: str) -> bytes:
         args = ['-f', source_format.name, '-t', target_format.name, '-o', '-']
         template_args = self.extract_template_args(metadata)
         command = self.config.pandoc.command + template_args + args
         return run_conversion(
-            command, data, type(self).__name__, source_format, target_format,
-            timeout=self.config.pandoc.timeout
+            args=command,
+            workdir=workdir,
+            input_data=data,
+            name=type(self).__name__,
+            source_format=source_format,
+            target_format=target_format,
+            timeout=self.config.pandoc.timeout,
         )
 
     @staticmethod
