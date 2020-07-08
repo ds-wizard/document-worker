@@ -5,5 +5,4 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - './examples/templates:/app/templates:ro'
       - './config.yml:/app/config.yml:ro'
