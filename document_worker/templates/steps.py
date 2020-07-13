@@ -1,13 +1,12 @@
 import jinja2
 import json
-import os
 
 from typing import Optional
 
 from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import DEFAULT_ENCODING
-from document_worker.documents import DocumentFile, FileFormat, FileFormats
 from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert
+from document_worker.documents import DocumentFile, FileFormat, FileFormats
 
 
 class FormatStepException(Exception):
@@ -63,15 +62,13 @@ class Jinja2Step(Step):
         self.extension = self.options.get(self.OPTION_EXTENSION, self.DEFAULT_FORMAT.file_extension)
 
         self.output_format = FileFormat(self.extension, self.content_type, self.extension)
-        self.root_dir = os.path.dirname(os.path.join(self.template.basedir, self.root_file))
-        self.root_filename = os.path.basename(self.root_file)
         try:
             self.j2_env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(self.root_dir),
+                loader=jinja2.FileSystemLoader(searchpath=template.template_dir),
                 extensions=['jinja2.ext.do'],
             )
             self._add_j2_enhancements()
-            self.j2_root_template = self.j2_env.get_template(self.root_filename)
+            self.j2_root_template = self.j2_env.get_template(self.root_file)
         except Exception as e:
             self.raise_exc(f'Failed loading Jinja2 template: {e}')
 
@@ -82,9 +79,12 @@ class Jinja2Step(Step):
         self.j2_env.tests.update(tests)
 
     def execute_first(self, context: dict) -> DocumentFile:
+        def asset_fetcher(filename):
+            return self.template.fetch_asset(filename)
+
         return DocumentFile(
             self.output_format,
-            self.j2_root_template.render(ctx=context).encode(DEFAULT_ENCODING),
+            self.j2_root_template.render(ctx=context, assets=asset_fetcher).encode(DEFAULT_ENCODING),
             DEFAULT_ENCODING
         )
 
@@ -108,7 +108,11 @@ class WkHtmlToPdfStep(Step):
         if document.file_format != FileFormats.HTML:
             self.raise_exc(f'WkHtmlToPdf does not support {document.file_format.name} format as input')
         data = self.wkhtmltopdf(
-            self.INPUT_FORMAT, self.OUTPUT_FORMAT, document.content, self.options
+            source_format=self.INPUT_FORMAT,
+            target_format=self.OUTPUT_FORMAT,
+            data=document.content,
+            metadata=self.options,
+            workdir=self.template.template_dir,
         )
         return DocumentFile(self.OUTPUT_FORMAT, data)
 
@@ -159,7 +163,11 @@ class PandocStep(Step):
         if document.file_format != self.input_format:
             self.raise_exc(f'Unexpected input {document.file_format.name} as input for pandoc')
         data = self.pandoc(
-            self.input_format, self.output_format, document.content, self.options
+            source_format=self.input_format,
+            target_format=self.output_format,
+            data=document.content,
+            metadata=self.options,
+            workdir=self.template.template_dir,
         )
         return DocumentFile(self.output_format, data)
 

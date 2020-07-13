@@ -19,7 +19,7 @@ from document_worker.templates import TemplateRegistry
 RETRY_MONGO_MULTIPLIER = 0.5
 RETRY_MONGO_TRIES = 3
 RETRY_MQ_MULTIPLIER = 0.5
-RETRY_MQ_TRIES = 5
+RETRY_MQ_TRIES = 10
 
 
 class JobException(Exception):
@@ -71,6 +71,7 @@ class Job:
         self.mongo_collection = self.mongo_db[ctx.config.mongo.collection]
         self.mongo_fs = gridfs.GridFS(self.mongo_db, ctx.config.mongo.fs_collection)
 
+        self.template = None
         self.doc_uuid = 'unknown'
         self.doc_context = dict()
         self.doc_filter = None  # type: Optional[dict]
@@ -122,8 +123,8 @@ class Job:
             self.raise_exc(f'Document "{self.doc_uuid}" not found')
         logging.info(f'Job "{self.doc_uuid}" details received')
 
-    @handle_job_step('Failed to verify job details')
-    def verify_job(self):
+    @handle_job_step('Failed to prepare job')
+    def prepare_job(self):
         logging.info(f'Verifying the received job "{self.doc_uuid}" details')
         # verify fields
         for field in self.DOCUMENT_FIELDS:
@@ -134,22 +135,22 @@ class Job:
         logging.info(f'Original state of job is {state}')
         if state == DocumentState.FINISHED:
             self.raise_exc(f'Job is already finished')
-        # verify template
-        template_uuid = uuid.UUID(self.doc[DocumentField.TEMPLATE])
-        if not self.template_registry.has_template(template_uuid):
-            self.raise_exc(f'Template {template_uuid} not found')
-        # verify format
+        # prepare template
+        template_id = self.doc[DocumentField.TEMPLATE]
+        self.template = self.template_registry.get_template(template_id)
+        if self.template is None:
+            self.raise_exc(f'Template {template_id} not found')
+        # prepare format
         format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
-        if not self.template_registry.has_format(template_uuid, format_uuid):
-            self.raise_exc(f'Format {format_uuid} (in template {template_uuid}) not found')
+        if not self.template.prepare_format(format_uuid):
+            self.raise_exc(f'Format {format_uuid} (in template {template_id}) not found')
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
         logging.info(f'Building document by rendering template with context')
-        template_uuid = uuid.UUID(self.doc[DocumentField.TEMPLATE])
         format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
-        self.final_file = self.template_registry.render(
-            template_uuid, format_uuid, self.doc_context
+        self.final_file = self.template.render(
+            format_uuid, self.doc_context
         )
 
     @handle_job_step('Failed to store document in GridFS')
@@ -201,11 +202,10 @@ class Job:
 
 class DocumentWorker:
 
-    def __init__(self, config: DocumentWorkerConfig, templates_dir):
+    def __init__(self, config: DocumentWorkerConfig, workdir: str):
         self.config = config
-        self.template_registry = TemplateRegistry(config, templates_dir)
+        self.template_registry = TemplateRegistry(config, workdir)
         self._prepare_logging()
-        self.template_registry.load_templates()
         self.job_context = JobContext(
             config=self.config,
             template_registry=self.template_registry,
@@ -249,7 +249,7 @@ class DocumentWorker:
             job.process_body(body)
             job.connect_mongo()
             job.get_job()
-            job.verify_job()
+            job.prepare_job()
             job.set_job_state(DocumentState.PROCESSING)
             job.build_document()
             job.store_document()
