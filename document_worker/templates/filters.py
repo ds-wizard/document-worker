@@ -52,15 +52,43 @@ def dot(text: str):
 
 
 def reply_str_value(reply) -> str:
-    if reply and 'value' in reply and 'value' in reply['value']:
-        return reply['value']['value']
+    if reply and 'value' in reply:
+        return reply['value']
     return ''
 
 
 def reply_int_value(reply) -> int:
-    if reply and 'value' in reply and 'value' in reply['value']:
-        return int(reply['value']['value'])
+    if reply and 'value' in reply:
+        return int(reply['value'])
     return 0
+
+
+def reply_float_value(reply) -> float:
+    if reply and 'value' in reply:
+        return float(reply['value'])
+    return 0
+
+
+def reply_items(reply) -> list:
+    if reply and 'value' in reply and isinstance(reply['value'], list):
+        return reply['value']
+    return []
+
+
+def find_reply(replies, path, xtype='string'):
+    if isinstance(path, list):
+        path = reply_path(path)
+    reply = replies.get(path, default=None)
+    if reply is None or 'value' not in reply:
+        return None
+    r = reply['value']
+    if xtype == 'int':
+        return r if isinstance(r, int) else int(r)
+    if xtype == 'float':
+        return r if isinstance(r, float) else float(r)
+    if xtype == 'list':
+        return r if isinstance(r, list) else list(r)
+    return str(r)
 
 
 def reply_path(uuids: list) -> str:
@@ -78,5 +106,8 @@ filters = {
     'dot': dot,
     'reply_str_value': reply_str_value,
     'reply_int_value': reply_int_value,
+    'reply_float_value': reply_float_value,
+    'reply_items': reply_items,
+    'find_reply': find_reply,
     'reply_path': reply_path,
 }
