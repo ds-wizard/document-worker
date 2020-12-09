@@ -2,6 +2,7 @@ import click
 from typing import IO
 
 from document_worker.config import DocumentWorkerConfig, DocumentWorkerCFGConfigParser, DocumentWorkerYMLConfigParser, MissingConfigurationError
+from document_worker.consts import VERSION
 from document_worker.worker import DocumentWorker
 
 
@@ -29,6 +30,7 @@ def validate_config(ctx, param, value: IO):
 
 
 @click.command(name='docworker')
+@click.version_option(version=VERSION)
 @click.argument('config', envvar='DOCWORKER_CONFIG',
                 type=click.File('r'), callback=validate_config)
 @click.argument('workdir', envvar='DOCWORKER_WORKDIR',
