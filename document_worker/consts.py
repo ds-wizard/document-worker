@@ -1,6 +1,6 @@
 DEFAULT_ENCODING = 'utf-8'
 EXIT_SUCCESS = 0
-VERSION = '2.9.0'
+VERSION = '2.10.0'
 PROG_NAME = 'docworker'
 
 class DocumentState:
