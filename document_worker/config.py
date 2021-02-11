@@ -201,7 +201,7 @@ class DocumentWorkerYMLConfigParser:
         },
         LOGGING_SECTION: {
             'level': 'WARNING',
-            'format': '%(asctime)s | %(levelname)s | %(module)s: %(message)s',
+            'format': '%(asctime)s | %(levelname)8s | %(module)s: [T:%(traceId)s] %(message)s',
         },
         DOCS_SECTION: {
             DOCS_NAMING_SUBSECTION: {
