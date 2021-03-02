@@ -2,6 +2,9 @@ import datetime
 import jinja2
 import markdown2
 
+from typing import Any
+
+
 _alphabet = [chr(x) for x in range(ord('a'), ord('z') + 1)]
 _alphabet_size = len(_alphabet)
 _romans = [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, 'XC'),
@@ -51,27 +54,35 @@ def dot(text: str):
     return text + '.'
 
 
-def reply_str_value(reply) -> str:
-    if reply and 'value' in reply:
-        return reply['value']
+def _has_value(reply: dict) -> bool:
+    return reply and 'value' in reply.keys() and 'value' in reply['value'].keys()
+
+
+def _get_value(reply: dict) -> Any:
+    return reply['value']['value']
+
+
+def reply_str_value(reply: dict) -> str:
+    if _has_value(reply):
+        return str(_get_value(reply))
     return ''
 
 
-def reply_int_value(reply) -> int:
-    if reply and 'value' in reply:
-        return int(reply['value'])
+def reply_int_value(reply: dict) -> int:
+    if _has_value(reply):
+        return int(_get_value(reply))
     return 0
 
 
-def reply_float_value(reply) -> float:
-    if reply and 'value' in reply:
-        return float(reply['value'])
+def reply_float_value(reply: dict) -> float:
+    if _has_value(reply):
+        return float(_get_value(reply))
     return 0
 
 
-def reply_items(reply) -> list:
-    if reply and 'value' in reply and isinstance(reply['value'], list):
-        return reply['value']
+def reply_items(reply: dict) -> list:
+    if _has_value(reply) and isinstance(_get_value(reply), list):
+        return _get_value(reply)
     return []
 
 
@@ -79,9 +90,9 @@ def find_reply(replies, path, xtype='string'):
     if isinstance(path, list):
         path = reply_path(path)
     reply = replies.get(path, default=None)
-    if reply is None or 'value' not in reply:
+    if not _has_value(reply):
         return None
-    r = reply['value']
+    r = _get_value(reply)
     if xtype == 'int':
         return r if isinstance(r, int) else int(r)
     if xtype == 'float':
