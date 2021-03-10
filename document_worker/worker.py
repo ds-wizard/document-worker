@@ -14,6 +14,7 @@ from typing import Optional
 from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import JobDataField, DocumentField, DocumentState
 from document_worker.documents import DocumentFile, DocumentNameGiver
+from document_worker.logging import DocWorkerLogger, DocWorkerLoggerWrapper, DocWorkerLogFilter
 from document_worker.templates import TemplateRegistry
 
 RETRY_MONGO_MULTIPLIER = 0.5
@@ -36,10 +37,10 @@ def handle_job_step(message):
             try:
                 return func(job, *args, **kwargs)
             except JobException as e:
-                logging.debug('Handling job exception', exc_info=True)
+                job.log.debug('Handling job exception', exc_info=True)
                 raise e
             except Exception as e:
-                logging.debug('Handling exception', exc_info=True)
+                job.log.debug('Handling exception', exc_info=True)
                 job.raise_exc(f'{message}: [{type(e).__name__}] {e}')
         return handled_step
     return decorator
@@ -72,11 +73,17 @@ class Job:
         self.mongo_fs = gridfs.GridFS(self.mongo_db, ctx.config.mongo.fs_collection)
 
         self.template = None
+        self.trace_uuid = str(uuid.uuid4())
         self.doc_uuid = 'unknown'
         self.doc_context = dict()
         self.doc_filter = None  # type: Optional[dict]
         self.doc = None  # type: Optional[dict]
         self.final_file = None  # type: Optional[DocumentFile]
+
+        self.log = DocWorkerLoggerWrapper(
+            trace_id=self.trace_uuid,
+            document_id=self.doc_uuid,
+        )
 
     def raise_exc(self, message: str):
         raise JobException(self.doc_uuid, message)
@@ -93,6 +100,7 @@ class Job:
         if JobDataField.DOCUMENT_UUID not in data.keys():
             self.raise_exc('Job data in body does not contain document UUID')
         self.doc_uuid = data[JobDataField.DOCUMENT_UUID]
+        self.log.document_id = self.doc_uuid
         self.doc_filter = {DocumentField.UUID: self.doc_uuid}
         self.doc_context = data.get(JobDataField.DOCUMENT_CONTEXT, self.doc_context)
 
@@ -110,29 +118,29 @@ class Job:
         db = self.config.mongo.database
         collection = self.config.mongo.collection
 
-        logging.info(f'Connecting to Mongo DB @ {host}:{port}/{db}')
+        self.log.info(f'Connecting to Mongo DB @ {host}:{port}/{db}')
         collections = self.mongo_db.list_collection_names()
         if collection not in collections:
             self.raise_exc(f'Collection "{collection}" not found in Mongo database')
 
     @handle_job_step('Failed to get job details from Mongo DB')
     def get_job(self):
-        logging.info(f'Getting the document "{self.doc_uuid}" details from Mongo DB')
+        self.log.info(f'Getting the document "{self.doc_uuid}" details from Mongo DB')
         self.doc = self._modify_doc({DocumentField.RETRIEVED: datetime.datetime.utcnow()})
         if self.doc is None:
             self.raise_exc(f'Document "{self.doc_uuid}" not found')
-        logging.info(f'Job "{self.doc_uuid}" details received')
+        self.log.info(f'Job "{self.doc_uuid}" details received')
 
     @handle_job_step('Failed to prepare job')
     def prepare_job(self):
-        logging.info(f'Verifying the received job "{self.doc_uuid}" details')
+        self.log.info(f'Verifying the received job "{self.doc_uuid}" details')
         # verify fields
         for field in self.DOCUMENT_FIELDS:
             if field not in self.doc.keys():
                 self.raise_exc(f'Missing field "{field}" in the job details')
         # verify state
         state = self.doc[DocumentField.STATE]
-        logging.info(f'Original state of job is {state}')
+        self.log.info(f'Original state of job is {state}')
         if state == DocumentState.FINISHED:
             self.raise_exc(f'Job is already finished')
         # prepare template
@@ -147,7 +155,7 @@ class Job:
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
-        logging.info(f'Building document by rendering template with context')
+        self.log.info(f'Building document by rendering template with context')
         format_uuid = uuid.UUID(self.doc[DocumentField.FORMAT])
         self.final_file = self.template.render(
             format_uuid, self.doc_context
@@ -166,14 +174,14 @@ class Job:
         port = self.config.mongo.port
         db = self.config.mongo.database
 
-        logging.info(f'Storing file to GridFS @ {host}:{port}/{db}')
+        self.log.info(f'Storing file to GridFS @ {host}:{port}/{db}')
         document_uuid = self.doc[DocumentField.UUID]
 
         file_id = self.mongo_fs.put(
             self.final_file.content,
             filename=document_uuid
         )
-        logging.info(f'File {document_uuid} stored with id {file_id}')
+        self.log.info(f'File {document_uuid} stored with id {file_id}')
 
     def finalize(self):
         document_uuid = self.doc[DocumentField.UUID]
@@ -186,7 +194,7 @@ class Job:
                 DocumentField.METADATA_FILENAME: filename
             }
         })
-        logging.info(f'Document {document_uuid} record finalized')
+        self.log.info(f'Document {document_uuid} record finalized')
 
     def set_job_state(self, state: str):
         return self._modify_doc({DocumentField.STATE: state})
@@ -196,7 +204,7 @@ class Job:
             result = self.set_job_state(state)[DocumentField.STATE]
             return result == DocumentState.FAILED
         except Exception as e:
-            logging.warning(f'Tried to set state of {self.doc_uuid} to {state} but failed: {e}')
+            self.log.warning(f'Tried to set state of {self.doc_uuid} to {state} but failed: {e}')
             return False
 
 
@@ -204,8 +212,8 @@ class DocumentWorker:
 
     def __init__(self, config: DocumentWorkerConfig, workdir: str):
         self.config = config
-        self.template_registry = TemplateRegistry(config, workdir)
         self._prepare_logging()
+        self.template_registry = TemplateRegistry(config, workdir)
         self.job_context = JobContext(
             config=self.config,
             template_registry=self.template_registry,
@@ -218,7 +226,11 @@ class DocumentWorker:
             level=self.config.logging.level,
             format=self.config.logging.message_format
         )
-        return logging.getLogger('docworker')
+        log_filter = DocWorkerLogFilter()
+        logging.getLogger().addFilter(filter=log_filter)
+        for logger in (logging.getLogger(n) for n in logging.root.manager.loggerDict.keys()):
+            logger.addFilter(filter=log_filter)
+        logging.setLoggerClass(DocWorkerLogger)
 
     @tenacity.retry(
         reraise=True,
@@ -255,17 +267,17 @@ class DocumentWorker:
             job.store_document()
             job.finalize()
         except JobException as e:
-            logging.error(f'({e.job_id}) {e.message}')
+            job.log.error(e.message)
             if job.try_set_job_state(DocumentState.FAILED):
-                logging.info(f'({e.job_id}) Set state to {DocumentState.FAILED}')
+                job.log.info(f'Set state to {DocumentState.FAILED}')
             else:
-                logging.warning(f'({e.job_id}) Could not set state to {DocumentState.FAILED}')
+                job.log.warning(f'Could not set state to {DocumentState.FAILED}')
         except Exception as e:
             logging.error(f'Job failed with error: {e}')
             if job.try_set_job_state(DocumentState.FAILED):
-                logging.info(f'Set state to {DocumentState.FAILED}')
+                job.log.info(f'Set state to {DocumentState.FAILED}')
             else:
-                logging.warning(f'Could not set state to {DocumentState.FAILED}')
+                job.log.warning(f'Could not set state to {DocumentState.FAILED}')
         finally:
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            logging.info(f'Job processing finished (ACK sent)')
+            job.log.info(f'Job processing finished (ACK sent)')
