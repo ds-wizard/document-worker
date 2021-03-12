@@ -43,17 +43,17 @@ class DocWorkerLoggerWrapper:
 		else:
 			return super().__getattribute__(name)
 
-	def _log(self, level: int, message: str):
-		logging.log(level=level, msg=message, extra=self._extra)
+	def _log(self, level: int, message: str, **kwargs):
+		logging.log(level=level, msg=message, extra=self._extra, **kwargs)
 
-	def debug(self, message: str):
-		self._log(level=logging.DEBUG, message=message)
+	def debug(self, message: str, **kwargs):
+		self._log(level=logging.DEBUG, message=message, **kwargs)
 
-	def info(self, message: str):
-		self._log(level=logging.INFO, message=message)
+	def info(self, message: str, **kwargs):
+		self._log(level=logging.INFO, message=message, **kwargs)
 
-	def warning(self, message: str):
-		self._log(level=logging.WARNING, message=message)
+	def warning(self, message: str, **kwargs):
+		self._log(level=logging.WARNING, message=message, **kwargs)
 
-	def error(self, message: str):
-		self._log(level=logging.ERROR, message=message)
+	def error(self, message: str, **kwargs):
+		self._log(level=logging.ERROR, message=message, **kwargs)
