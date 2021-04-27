@@ -96,6 +96,9 @@ class Template:
             data=file.read()
         )
 
+    def asset_path(self, filename: str) -> str:
+        return os.path.join(self.template_dir, filename)
+
     def store_file(self, filename, data, **kwargs):
         full_path = os.path.join(self.template_dir, filename)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -115,8 +118,11 @@ class Template:
         for asset in self.metadata.get(TemplateField.ASSETS, []):
             filename = asset[TemplateAssetField.FILENAME]
             file = assets_fs.find_one({'filename': asset[TemplateAssetField.UUID]})
-            data = file.read()
-            self.store_file(filename, data, mode='wb')
+            if file is None:
+                logging.error(f'Asset "{TemplateAssetField.FILENAME}" not found in GridFS')
+            else:
+                data = file.read()
+                self.store_file(filename, data, mode='wb')
 
     def prepare_format(self, format_uuid: uuid.UUID) -> bool:
         str_uuid = str(format_uuid)

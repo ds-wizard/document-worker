@@ -82,9 +82,16 @@ class Jinja2Step(Step):
         def asset_fetcher(filename):
             return self.template.fetch_asset(filename)
 
+        def asset_path(filename):
+            return self.template.asset_path(filename)
+
         return DocumentFile(
             self.output_format,
-            self.j2_root_template.render(ctx=context, assets=asset_fetcher).encode(DEFAULT_ENCODING),
+            self.j2_root_template.render(
+                ctx=context,
+                assets=asset_fetcher,
+                asset_path=asset_path,
+            ).encode(DEFAULT_ENCODING),
             DEFAULT_ENCODING
         )
 
