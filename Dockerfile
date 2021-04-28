@@ -22,6 +22,7 @@ RUN pip install -r requirements.txt
 
 COPY . /app
 
+RUN cd addons && bash install.sh && cd ..
 RUN python setup.py install
 
 ENV DOCWORKER_CONFIG /app/config.yml
