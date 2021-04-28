@@ -3,6 +3,7 @@ isodate==0.6.0
 Jinja2==2.11.3
 markdown2==2.4.0
 MarkupSafe==1.1.1
+panflute==2.0.5
 pathvalidate==2.4.1
 pika==1.2.0
 pymongo==3.11.3

@@ -14,7 +14,7 @@ setup(
     keywords='documents worker jinja2 pandoc pdf-generation',
     license='Apache License 2.0',
     url='https://github.com/ds-wizard/document-worker',
-    packages=find_packages(),
+    packages=find_packages(exclude=["addons", "fonts"]),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: Apache Software License',
