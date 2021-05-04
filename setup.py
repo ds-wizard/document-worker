@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='2.13.0',
+    version='2.14.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -14,7 +14,7 @@ setup(
     keywords='documents worker jinja2 pandoc pdf-generation',
     license='Apache License 2.0',
     url='https://github.com/ds-wizard/document-worker',
-    packages=find_packages(),
+    packages=find_packages(exclude=["addons", "fonts"]),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: Apache Software License',
