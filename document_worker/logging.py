@@ -2,6 +2,8 @@ import logging
 
 from typing import Any
 
+from document_worker.consts import LOGGER_NAME
+
 
 class DocWorkerLogFilter(logging.Filter):
 	def filter(self, record):
@@ -19,7 +21,7 @@ class DocWorkerLogger(logging.Logger):
 		self.addFilter(DocWorkerLogFilter())
 
 
-class DocWorkerLoggerWrapper:
+class _DocWorkerLoggerWrapper:
 
 	ATTR_MAP = {
 		'trace_id': 'traceId',
@@ -28,6 +30,7 @@ class DocWorkerLoggerWrapper:
 
 	def __init__(self, trace_id: str, document_id: str):
 		self._extra = dict()
+		self._logger = logging.getLogger(LOGGER_NAME)
 		self.trace_id = trace_id
 		self.document_id = document_id
 
@@ -44,7 +47,10 @@ class DocWorkerLoggerWrapper:
 			return super().__getattribute__(name)
 
 	def _log(self, level: int, message: str, **kwargs):
-		logging.log(level=level, msg=message, extra=self._extra, **kwargs)
+		self._logger.log(level=level, msg=message, extra=self._extra, **kwargs)
+
+	def log(self, *args, **kwargs):
+		self._logger.log(*args, extra=self._extra, **kwargs)
 
 	def debug(self, message: str, **kwargs):
 		self._log(level=logging.DEBUG, message=message, **kwargs)
@@ -57,3 +63,12 @@ class DocWorkerLoggerWrapper:
 
 	def error(self, message: str, **kwargs):
 		self._log(level=logging.ERROR, message=message, **kwargs)
+
+	def set_level(self, level: str):
+		self._logger.setLevel(level)
+
+
+LOGGER = _DocWorkerLoggerWrapper(
+	trace_id='-',
+	document_id='-',
+)

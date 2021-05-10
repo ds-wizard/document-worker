@@ -1,8 +1,8 @@
-FROM python:3.8-slim-buster
+FROM python:3.9-slim-buster
 
 RUN mkdir -p /app/templates
 
-RUN apt-get update && apt-get install -qq -y wget
+RUN apt-get update && apt-get install -qq -y wget libpq-dev gcc
 
 RUN wget --quiet https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.buster_amd64.deb && \
     apt-get -qy install ./wkhtmltox_0.12.6-1.buster_amd64.deb && \
