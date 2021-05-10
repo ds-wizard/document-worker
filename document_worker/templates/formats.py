@@ -1,8 +1,8 @@
 import logging
-import uuid
 
 from document_worker.templates.steps import create_step, FormatStepException
 from document_worker.consts import FormatField, StepField
+from document_worker.context import Context
 from document_worker.documents import DocumentFile
 
 
@@ -18,9 +18,9 @@ class Format:
     def __init__(self, template, metadata: dict):
         self.template = template
         self._verify_metadata(metadata)
-        self.uuid = uuid.UUID(metadata[FormatField.UUID])
+        self.uuid = metadata[FormatField.UUID]
         self.name = metadata[FormatField.NAME]
-        logging.info(f'Setting up format "{self.name}" ({self.uuid})')
+        Context.logger.info(f'Setting up format "{self.name}" ({self.uuid})')
         self.steps = self._create_steps(metadata)
         if len(self.steps) < 1:
             self.template.raise_exc(f'Format {self.name} has no steps')
@@ -41,13 +41,13 @@ class Format:
             step_options = step_meta[StepField.OPTIONS]
             try:
                 steps.append(
-                    create_step(self.template.config, self.template, step_name, step_options)
+                    create_step(self.template, step_name, step_options)
                 )
             except FormatStepException as e:
-                logging.warning('Handling job exception', exc_info=True)
+                Context.logger.warning('Handling job exception', exc_info=True)
                 self.template.raise_exc(f'Cannot load step "{step_name}" of format "{self.name}": {e.message}')
             except Exception as e:
-                logging.warning('Handling job exception', exc_info=True)
+                Context.logger.warning('Handling job exception', exc_info=True)
                 self.template.raise_exc(f'Cannot load step "{step_name}" of format "{self.name}" ({e})')
         return steps
 

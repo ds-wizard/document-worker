@@ -3,8 +3,8 @@ import json
 
 from typing import Optional
 
-from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import DEFAULT_ENCODING
+from document_worker.context import Context
 from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert
 from document_worker.documents import DocumentFile, FileFormat, FileFormats
 
@@ -17,8 +17,7 @@ class FormatStepException(Exception):
 
 class Step:
 
-    def __init__(self, config: DocumentWorkerConfig, template, options: dict):
-        self.config = config
+    def __init__(self, template, options: dict):
         self.template = template
         self.options = options
 
@@ -55,8 +54,8 @@ class Jinja2Step(Step):
     OPTION_CONTENT_TYPE = 'content-type'
     OPTION_EXTENSION = 'extension'
 
-    def __init__(self, config: DocumentWorkerConfig, template, options: dict):
-        super().__init__(config, template, options)
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
         self.root_file = self.options[self.OPTION_ROOT_FILE]
         self.content_type = self.options.get(self.OPTION_CONTENT_TYPE, self.DEFAULT_FORMAT.content_type)
         self.extension = self.options.get(self.OPTION_EXTENSION, self.DEFAULT_FORMAT.file_extension)
@@ -79,11 +78,11 @@ class Jinja2Step(Step):
         self.j2_env.tests.update(tests)
 
     def execute_first(self, context: dict) -> DocumentFile:
-        def asset_fetcher(filename):
-            return self.template.fetch_asset(filename)
+        def asset_fetcher(file_name):
+            return self.template.fetch_asset(file_name)
 
-        def asset_path(filename):
-            return self.template.asset_path(filename)
+        def asset_path(file_name):
+            return self.template.asset_path(file_name)
 
         return DocumentFile(
             self.output_format,
@@ -104,9 +103,9 @@ class WkHtmlToPdfStep(Step):
     INPUT_FORMAT = FileFormats.HTML
     OUTPUT_FORMAT = FileFormats.PDF
 
-    def __init__(self, config: DocumentWorkerConfig, template, options: dict):
-        super().__init__(config, template, options)
-        self.wkhtmltopdf = WkHtmlToPdf(self.config)
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
+        self.wkhtmltopdf = WkHtmlToPdf(config=Context.get().app.cfg)
 
     def execute_first(self, context: dict) -> Optional[DocumentFile]:
         return self.raise_exc(f'Step "{self.NAME}" cannot be first')
@@ -119,7 +118,7 @@ class WkHtmlToPdfStep(Step):
             target_format=self.OUTPUT_FORMAT,
             data=document.content,
             metadata=self.options,
-            workdir=self.template.template_dir,
+            workdir=str(self.template.template_dir),
         )
         return DocumentFile(self.OUTPUT_FORMAT, data)
 
@@ -153,9 +152,9 @@ class PandocStep(Step):
     OPTION_FROM = 'from'
     OPTION_TO = 'to'
 
-    def __init__(self, config: DocumentWorkerConfig, template, options: dict):
-        super().__init__(config, template, options)
-        self.pandoc = Pandoc(config)
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
+        self.pandoc = Pandoc(config=Context.get().app.cfg)
         self.input_format = FileFormats.get(options[self.OPTION_FROM])
         self.output_format = FileFormats.get(options[self.OPTION_TO])
         if self.input_format not in self.INPUT_FORMATS:
@@ -174,7 +173,7 @@ class PandocStep(Step):
             target_format=self.output_format,
             data=document.content,
             metadata=self.options,
-            workdir=self.template.template_dir,
+            workdir=str(self.template.template_dir),
         )
         return DocumentFile(self.output_format, data)
 
@@ -196,9 +195,9 @@ class RdfLibConvertStep(Step):
     OPTION_FROM = 'from'
     OPTION_TO = 'to'
 
-    def __init__(self, config: DocumentWorkerConfig, template, options: dict):
-        super().__init__(config, template, options)
-        self.rdflib_convert = RdfLibConvert(config)
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
+        self.rdflib_convert = RdfLibConvert(config=Context.get().app.cfg)
         self.input_format = FileFormats.get(options[self.OPTION_FROM])
         self.output_format = FileFormats.get(options[self.OPTION_TO])
         if self.input_format not in self.INPUT_FORMATS:
@@ -227,8 +226,8 @@ STEPS = {
 }
 
 
-def create_step(config: DocumentWorkerConfig, template, name: str, options: dict) -> Step:
+def create_step(template, name: str, options: dict) -> Step:
     if name not in STEPS:
         raise KeyError(f'Unknown step name "{name}"')
-    step = STEPS[name](config, template, options)
+    step = STEPS[name](template, options)
     return step

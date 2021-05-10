@@ -1,8 +1,9 @@
 import pathvalidate
 import slugify
 
-from document_worker.consts import DEFAULT_ENCODING, DocumentField, DocumentNamingStrategy
-from document_worker.config import DocumentWorkerConfig
+from document_worker.consts import DEFAULT_ENCODING, DocumentNamingStrategy
+from document_worker.context import Context
+from document_worker.connection.database import DBDocument
 
 
 class FileFormat:
@@ -97,21 +98,21 @@ class DocumentFile:
             f.write(self.content)
 
 
-def _name_uuid(document_metadata: dict) -> str:
-    return document_metadata[DocumentField.UUID]
+def _name_uuid(document: DBDocument) -> str:
+    return document.uuid
 
 
-def _name_sanitize(document_metadata: dict) -> str:
-    name = pathvalidate.sanitize_filename(document_metadata[DocumentField.NAME])
+def _name_sanitize(document: DBDocument) -> str:
+    name = pathvalidate.sanitize_filename(document.name)
     if len(name) == 0:
-        name = document_metadata[DocumentField.UUID]
+        name = document.uuid
     return name
 
 
-def _name_slugify(document_metadata: dict) -> str:
-    name = slugify.slugify(document_metadata[DocumentField.NAME])
+def _name_slugify(document: DBDocument) -> str:
+    name = slugify.slugify(document.name)
     if len(name) == 0:
-        name = document_metadata[DocumentField.UUID]
+        name = document.uuid
     return name
 
 
@@ -124,9 +125,8 @@ class DocumentNameGiver:
         DocumentNamingStrategy.SLUGIFY: _name_slugify,
     }
 
-    def __init__(self, config: DocumentWorkerConfig):
-        self.config = config
-        self.strategy = self._STRATEGIES.get(self.config.documents.naming_strategy, self._FALLBACK)
-
-    def name_document(self, document_metadata: dict, document_file: DocumentFile) -> str:
-        return document_file.filename(self.strategy(document_metadata))
+    @classmethod
+    def name_document(cls, document_metadata: DBDocument, document_file: DocumentFile) -> str:
+        config = Context.get().app.cfg
+        strategy = cls._STRATEGIES.get(config.doc.naming_strategy, cls._FALLBACK)
+        return document_file.filename(strategy(document_metadata))
