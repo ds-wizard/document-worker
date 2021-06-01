@@ -227,16 +227,23 @@ class DocumentWorker:
         queue_conn = ctx.app.db.conn_queue
         with queue_conn.new_cursor() as cursor:
             cursor.execute(Database.LISTEN)
+            queue_conn.listening = True
             Context.logger.info(f'Listening on document job queue')
 
             notifications = list()
             timeout = ctx.app.cfg.db.queue_timout
+
+            Context.logger.info(f'Entering working cycle, waiting for notifications')
             while True:
                 while self._work():
                     pass
 
-                Context.logger.info(f'Waiting for new notifications')
+                Context.logger.debug(f'Waiting for new notifications')
                 notifications.clear()
+                if not queue_conn.listening:
+                    cursor.execute(Database.LISTEN)
+                    queue_conn.listening = True
+
                 w = select.select([queue_conn.connection], [], [], timeout)
                 if w == ([], [], []):
                     Context.logger.debug(f'Nothing received in this cycle '
@@ -256,8 +263,8 @@ class DocumentWorker:
         reraise=True,
         wait=tenacity.wait_exponential(multiplier=RETRY_QUERY_MULTIPLIER),
         stop=tenacity.stop_after_attempt(RETRY_QUERY_TRIES),
-        before=tenacity.before_log(Context.logger, logging.INFO),
-        after=tenacity.after_log(Context.logger, logging.INFO),
+        before=tenacity.before_log(Context.logger, logging.DEBUG),
+        after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
     def _work(self):
         Context.update_trace_id(str(uuid.uuid4()))

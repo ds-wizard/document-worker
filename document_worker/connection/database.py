@@ -311,6 +311,7 @@ class PostgresConnection:
 
     def __init__(self, name: str, dsn: str, timeout: int = 30000, autocommit: bool = False):
         self.name = name
+        self.listening = False
         self.dsn = psycopg2.extensions.make_dsn(dsn, connect_timeout=timeout)
         self.isolation = ISOLATION_AUTOCOMMIT if autocommit else ISOLATION_DEFAULT
         self._connection = None
@@ -334,6 +335,7 @@ class PostgresConnection:
         cursor.close()
         connection.commit()
         self._connection = connection
+        self.listening = False
 
     def connect(self):
         if not self._connection or self._connection.closed != 0:
