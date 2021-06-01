@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='2.14.0',
+    version='3.0.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -27,9 +27,9 @@ setup(
         'click',
         'jinja2',
         'markdown2',
+        'minio',
         'pathvalidate',
-        'pika',
-        'pymongo',
+        'psycopg2',
         'PyYAML',
         'rdflib',
         'rdflib-jsonld',

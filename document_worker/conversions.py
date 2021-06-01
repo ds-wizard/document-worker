@@ -1,17 +1,17 @@
-import logging
 import rdflib
 import shlex
 import subprocess
 
 from document_worker.config import DocumentWorkerConfig
 from document_worker.consts import EXIT_SUCCESS, DEFAULT_ENCODING
+from document_worker.context import Context
 from document_worker.documents import FileFormat, FileFormats
 
 
 def run_conversion(*, args: list, workdir: str, input_data: bytes, name: str,
                    source_format: FileFormat, target_format: FileFormat, timeout=None) -> bytes:
     command = ' '.join(args)
-    logging.info(f'Calling "{command}" to convert from {source_format} to {target_format}')
+    Context.logger.info(f'Calling "{command}" to convert from {source_format} to {target_format}')
     p = subprocess.Popen(args,
                          cwd=workdir,
                          stdin=subprocess.PIPE,
@@ -38,7 +38,7 @@ class FormatConversionException(Exception):
 
 class WkHtmlToPdf:
 
-    ARGS1 = ['--quiet']
+    ARGS1 = ['--quiet', '--load-error-handling', 'ignore']
     ARGS2 = ['--encoding', DEFAULT_ENCODING, '-', '-']
 
     def __init__(self, config: DocumentWorkerConfig = None):
@@ -46,8 +46,11 @@ class WkHtmlToPdf:
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
                  data: bytes, metadata: dict, workdir: str) -> bytes:
+        config_args = shlex.split(self.config.wkhtmltopdf.args)
         template_args = self.extract_template_args(metadata)
-        command = self.config.wkhtmltopdf.command + self.ARGS1 + template_args + self.ARGS2
+        args_access = ['--disable-local-file-access', '--allow', workdir]
+        args = self.ARGS1 + template_args + config_args + args_access + self.ARGS2
+        command = self.config.wkhtmltopdf.command + args
         return run_conversion(
             args=command,
             workdir=workdir,
@@ -71,8 +74,9 @@ class Pandoc:
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
                  data: bytes, metadata: dict, workdir: str) -> bytes:
         args = ['-f', source_format.name, '-t', target_format.name, '-o', '-']
+        config_args = shlex.split(self.config.pandoc.args)
         template_args = self.extract_template_args(metadata)
-        command = self.config.pandoc.command + template_args + args
+        command = self.config.pandoc.command + template_args + config_args + args
         return run_conversion(
             args=command,
             workdir=workdir,
