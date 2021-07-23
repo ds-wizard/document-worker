@@ -8,9 +8,9 @@ RUN wget --quiet https://github.com/wkhtmltopdf/packaging/releases/download/0.12
     apt-get -qy install ./wkhtmltox_0.12.6-1.buster_amd64.deb && \
     rm -f wkhtmltox_0.12.6-1.buster_amd64.deb
 
-RUN wget --quiet https://github.com/jgm/pandoc/releases/download/2.13/pandoc-2.13-1-amd64.deb && \
-    apt-get -qy install ./pandoc-2.13-1-amd64.deb && \
-    rm -f pandoc-2.13-1-amd64.deb
+RUN wget --quiet https://github.com/jgm/pandoc/releases/download/2.14.1/pandoc-2.14.1-1-amd64.deb && \
+    apt-get -qy install ./pandoc-2.14.1-1-amd64.deb && \
+    rm -f pandoc-2.14.1-1-amd64.deb
 
 COPY fonts /usr/share/fonts/truetype/custom
 RUN fc-cache
