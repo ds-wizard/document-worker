@@ -92,6 +92,34 @@ class Pandoc:
         return shlex.split(metadata.get('args', ''))
 
 
+class Prince:
+
+    ARGS = ['-', '-o', '-']
+
+    def __init__(self, config: DocumentWorkerConfig = None):
+        self.config = config
+
+    def __call__(self, source_format: FileFormat, target_format: FileFormat,
+                 data: bytes, metadata: dict, workdir: str) -> bytes:
+        config_args = shlex.split(self.config.prince.args)
+        template_args = self.extract_template_args(metadata)
+        args = self.ARGS + template_args + config_args
+        command = self.config.prince.command + args
+        return run_conversion(
+            args=command,
+            workdir=workdir,
+            input_data=data,
+            name=type(self).__name__,
+            source_format=source_format,
+            target_format=target_format,
+            timeout=self.config.prince.timeout,
+        )
+
+    @staticmethod
+    def extract_template_args(metadata: dict):
+        return shlex.split(metadata.get('args', ''))
+
+
 class RdfLibConvert:
 
     FORMATS = {

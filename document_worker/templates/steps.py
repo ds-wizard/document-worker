@@ -1,7 +1,5 @@
 import jinja2
 import json
-import os
-import sys
 
 from weasyprint import HTML
 from weasyprint.fonts import FontConfiguration
@@ -10,7 +8,7 @@ from typing import Optional
 
 from document_worker.consts import DEFAULT_ENCODING
 from document_worker.context import Context
-from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert
+from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert, Prince
 from document_worker.documents import DocumentFile, FileFormat, FileFormats
 
 
@@ -237,6 +235,31 @@ class WeasyPrintStep(Step):
         if document.file_format != FileFormats.HTML:
             self.raise_exc(f'WeasyPrint does not support {document.file_format.name} format as input')
         data = HTML(string=document.content.decode(DEFAULT_ENCODING)).write_pdf(font_config=FontConfiguration())
+        return DocumentFile(self.OUTPUT_FORMAT, data)
+
+
+class PrinceStep(Step):
+    NAME = 'prince'
+    INPUT_FORMAT = FileFormats.HTML
+    OUTPUT_FORMAT = FileFormats.PDF
+
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
+        self.prince = Prince(config=Context.get().app.cfg)
+
+    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+        return self.raise_exc(f'Step "{self.NAME}" cannot be first')
+
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
+        if document.file_format != FileFormats.HTML:
+            self.raise_exc(f'Prince does not support {document.file_format.name} format as input')
+        data = self.prince(
+            source_format=self.INPUT_FORMAT,
+            target_format=self.OUTPUT_FORMAT,
+            data=document.content,
+            metadata=self.options,
+            workdir=str(self.template.template_dir),
+        )
         return DocumentFile(self.OUTPUT_FORMAT, data)
 
 

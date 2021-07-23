@@ -85,13 +85,15 @@ class CommandConfig:
 class DocumentWorkerConfig:
 
     def __init__(self, db: DatabaseConfig, s3: S3Config, log: LoggingConfig,
-                 doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig):
+                 doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig,
+                 prince: CommandConfig):
         self.db = db
         self.s3 = s3
         self.log = log
         self.doc = doc
         self.pandoc = pandoc
         self.wkhtmltopdf = wkhtmltopdf
+        self.prince = prince
 
     def __str__(self):
         return f'DocumentWorkerConfig\n' \
@@ -102,6 +104,7 @@ class DocumentWorkerConfig:
                f'{self.doc}' \
                f'Pandoc: {self.pandoc}' \
                f'WkHtmlToPdf: {self.wkhtmltopdf}' \
+               f'Prince: {self.prince}' \
                f'====================\n'
 
 
@@ -115,6 +118,7 @@ class DocumentWorkerConfigParser:
     EXTERNAL_SECTION = 'externals'
     PANDOC_SUBSECTION = 'pandoc'
     WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
+    PRINCE_SUBSECTION = 'prince'
 
     DEFAULTS = {
         DB_SECTION: {
@@ -146,6 +150,11 @@ class DocumentWorkerConfigParser:
             },
             WKHTMLTOPDF_SUBSECTION: {
                 'executable': 'wkhtmltopdf',
+                'args': '',
+                'timeout': None,
+            },
+            PRINCE_SUBSECTION: {
+                'executable': 'prince',
                 'args': '',
                 'timeout': None,
             },
@@ -248,6 +257,10 @@ class DocumentWorkerConfigParser:
         return self._command_config(self.EXTERNAL_SECTION, self.WKHTMLTOPDF_SUBSECTION)
 
     @property
+    def prince(self) -> CommandConfig:
+        return self._command_config(self.EXTERNAL_SECTION, self.PRINCE_SUBSECTION)
+
+    @property
     def config(self) -> DocumentWorkerConfig:
         return DocumentWorkerConfig(
             db=self.db,
@@ -256,4 +269,5 @@ class DocumentWorkerConfigParser:
             doc=self.documents,
             pandoc=self.pandoc,
             wkhtmltopdf=self.wkhtmltopdf,
+            prince=self.prince,
         )
