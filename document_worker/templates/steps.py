@@ -1,5 +1,10 @@
 import jinja2
 import json
+import os
+import sys
+
+from weasyprint import HTML
+from weasyprint.fonts import FontConfiguration
 
 from typing import Optional
 
@@ -217,12 +222,31 @@ class RdfLibConvertStep(Step):
         return DocumentFile(self.output_format, data)
 
 
+class WeasyPrintStep(Step):
+    NAME = 'weasyprint'
+    INPUT_FORMAT = FileFormats.HTML
+    OUTPUT_FORMAT = FileFormats.PDF
+
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
+
+    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+        return self.raise_exc(f'Step "{self.NAME}" cannot be first')
+
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
+        if document.file_format != FileFormats.HTML:
+            self.raise_exc(f'WeasyPrint does not support {document.file_format.name} format as input')
+        data = HTML(string=document.content.decode(DEFAULT_ENCODING)).write_pdf(font_config=FontConfiguration())
+        return DocumentFile(self.OUTPUT_FORMAT, data)
+
+
 STEPS = {
     JSONStep.NAME: JSONStep,
     Jinja2Step.NAME: Jinja2Step,
     WkHtmlToPdfStep.NAME: WkHtmlToPdfStep,
     PandocStep.NAME: PandocStep,
     RdfLibConvertStep.NAME: RdfLibConvertStep,
+    WeasyPrintStep.NAME: WeasyPrintStep,
 }
 
 

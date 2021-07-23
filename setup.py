@@ -35,6 +35,7 @@ setup(
         'rdflib-jsonld',
         'python-slugify',
         'tenacity',
+        'WeasyPrint',
     ],
     entry_points={
         'console_scripts': [
