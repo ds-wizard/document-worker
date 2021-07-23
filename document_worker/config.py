@@ -123,7 +123,7 @@ class DocumentWorkerConfigParser:
             'queueTimeout': 120,
         },
         S3_SECTION: {
-            'host': 'http://minio:9000',
+            'url': 'http://minio:9000',
             'vhost': 'minio',
             'queue': 'minio',
             'bucket': 'engine-wizard',
