@@ -1,3 +1,4 @@
+import pathlib
 import rdflib
 import shlex
 import subprocess
@@ -114,6 +115,39 @@ class Prince:
             target_format=target_format,
             timeout=self.config.prince.timeout,
         )
+
+    @staticmethod
+    def extract_template_args(metadata: dict):
+        return shlex.split(metadata.get('args', ''))
+
+
+class Relaxed:
+
+    SOURCE_FILENAME = '/tmp/docworker/document.html'
+    TARGET_FILENAME = '/tmp/docworker/document.pdf'
+    ARGS = [SOURCE_FILENAME, '--no-sandbox', '--build-once', TARGET_FILENAME]
+
+    def __init__(self, config: DocumentWorkerConfig = None):
+        self.config = config
+
+    def __call__(self, source_format: FileFormat, target_format: FileFormat,
+                 data: bytes, metadata: dict, workdir: str) -> bytes:
+        config_args = shlex.split(self.config.relaxed.args)
+        template_args = self.extract_template_args(metadata)
+        args = self.ARGS + template_args + config_args
+        command = self.config.relaxed.command + args
+        pathlib.Path(self.SOURCE_FILENAME).write_bytes(data)
+        run_conversion(
+            args=command,
+            workdir=workdir,
+            input_data=data,
+            name=type(self).__name__,
+            source_format=source_format,
+            target_format=target_format,
+            timeout=self.config.relaxed.timeout,
+        )
+        # TODO: check if OK, otherwise the file does not exist
+        return pathlib.Path(self.TARGET_FILENAME).read_bytes()
 
     @staticmethod
     def extract_template_args(metadata: dict):

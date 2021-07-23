@@ -8,7 +8,7 @@ from typing import Optional
 
 from document_worker.consts import DEFAULT_ENCODING
 from document_worker.context import Context
-from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert, Prince
+from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert, Prince, Relaxed
 from document_worker.documents import DocumentFile, FileFormat, FileFormats
 
 
@@ -263,6 +263,31 @@ class PrinceStep(Step):
         return DocumentFile(self.OUTPUT_FORMAT, data)
 
 
+class ReLaXedStep(Step):
+    NAME = 'relaxed'
+    INPUT_FORMAT = FileFormats.HTML
+    OUTPUT_FORMAT = FileFormats.PDF
+
+    def __init__(self, template, options: dict):
+        super().__init__(template, options)
+        self.relaxed = Relaxed(config=Context.get().app.cfg)
+
+    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+        return self.raise_exc(f'Step "{self.NAME}" cannot be first')
+
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
+        if document.file_format != FileFormats.HTML:
+            self.raise_exc(f'Prince does not support {document.file_format.name} format as input')
+        data = self.relaxed(
+            source_format=self.INPUT_FORMAT,
+            target_format=self.OUTPUT_FORMAT,
+            data=document.content,
+            metadata=self.options,
+            workdir=str(self.template.template_dir),
+        )
+        return DocumentFile(self.OUTPUT_FORMAT, data)
+
+
 STEPS = {
     JSONStep.NAME: JSONStep,
     Jinja2Step.NAME: Jinja2Step,
@@ -270,6 +295,8 @@ STEPS = {
     PandocStep.NAME: PandocStep,
     RdfLibConvertStep.NAME: RdfLibConvertStep,
     WeasyPrintStep.NAME: WeasyPrintStep,
+    PrinceStep.NAME: PrinceStep,
+    ReLaXedStep.NAME: ReLaXedStep,
 }
 
 
