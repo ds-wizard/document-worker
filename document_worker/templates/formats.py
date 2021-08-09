@@ -16,9 +16,9 @@ class Format:
     def __init__(self, template, metadata: dict):
         self.template = template
         self._verify_metadata(metadata)
-        self.uuid = metadata[FormatField.UUID]
+        self.uuid = self._trace = metadata[FormatField.UUID]
         self.name = metadata[FormatField.NAME]
-        Context.logger.info(f'Setting up format "{self.name}" ({self.uuid})')
+        Context.logger.info(f'Setting up format "{self.name}" ({self._trace})')
         self.steps = self._create_steps(metadata)
         if len(self.steps) < 1:
             self.template.raise_exc(f'Format {self.name} has no steps')
@@ -30,7 +30,8 @@ class Format:
         for step in metadata[FormatField.STEPS]:
             for required_field in self.STEP_META_REQUIRED:
                 if required_field not in step:
-                    self.template.raise_exc(f'Missing required field {required_field} for step in format "{self.name}"')
+                    self.template.raise_exc(f'Missing required field {required_field} '
+                                            f'for step in format "{self.name}"')
 
     def _create_steps(self, metadata: dict):
         steps = []
@@ -43,10 +44,12 @@ class Format:
                 )
             except FormatStepException as e:
                 Context.logger.warning('Handling job exception', exc_info=True)
-                self.template.raise_exc(f'Cannot load step "{step_name}" of format "{self.name}": {e.message}')
+                self.template.raise_exc(f'Cannot load step "{step_name}" of format "{self.name}"\n'
+                                        f'- {e.message}')
             except Exception as e:
                 Context.logger.warning('Handling job exception', exc_info=True)
-                self.template.raise_exc(f'Cannot load step "{step_name}" of format "{self.name}" ({e})')
+                self.template.raise_exc(f'Cannot load step "{step_name}" of format "{self.name}"\n'
+                                        f'- {str(e)}')
         return steps
 
     def execute(self, context: dict) -> DocumentFile:

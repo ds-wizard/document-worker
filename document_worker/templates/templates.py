@@ -17,6 +17,10 @@ class TemplateException(Exception):
         self.template_id = template_id
         self.message = message
 
+    def __str__(self):
+        return f'Error in template "{self.template_id}"\n' \
+               f'- {self.message}'
+
 
 class Asset:
 
@@ -97,14 +101,10 @@ class Template:
             if not result:
                 Context.logger.error(f'Asset "{asset.file_name}" cannot be retrieved')
 
-    def prepare_format(self, format_uuid: str) -> bool:
+    def prepare_format(self, format_uuid: str):
         for format_meta in self.db_template.template.formats:
             if format_uuid == format_meta.get(FormatField.UUID, None):
-                try:
-                    self.formats[format_uuid] = Format(self, format_meta)
-                except Exception as e:
-                    Context.logger.error(f'Format {format_uuid} of template '
-                                         f'{self.template_id} cannot be loaded - {e}')
+                self.formats[format_uuid] = Format(self, format_meta)
                 return True
         return False
 
