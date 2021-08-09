@@ -12,11 +12,6 @@ class DocumentState:
     FINISHED = 'DoneDocumentState'
 
 
-class DocumentField:
-    METADATA_CONTENT_TYPE = 'contentType'
-    METADATA_FILENAME = 'fileName'
-
-
 class TemplateAssetField:
     UUID = 'uuid'
     FILENAME = 'fileName'

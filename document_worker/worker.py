@@ -13,7 +13,7 @@ from typing import Optional
 from document_worker.config import DocumentWorkerConfig
 from document_worker.connection.database import Database, DBJob, DBDocument
 from document_worker.connection.s3storage import S3Storage
-from document_worker.consts import DocumentState, DocumentField
+from document_worker.consts import DocumentState
 from document_worker.context import Context
 from document_worker.documents import DocumentFile, DocumentNameGiver
 from document_worker.logging import DocWorkerLogger, DocWorkerLogFilter
@@ -138,13 +138,13 @@ class Job:
     def finalize(self):
         file_name = DocumentNameGiver.name_document(self.doc, self.final_file)
         self.doc.finished_at = datetime.datetime.now()
-        self.doc.metadata = {
-            DocumentField.METADATA_CONTENT_TYPE: self.final_file.content_type,
-            DocumentField.METADATA_FILENAME: file_name,
-        }
+        self.doc.file_name = file_name
+        self.doc.content_type = self.final_file.content_type
         self.ctx.app.db.update_document_finished(
             finished_at=self.doc.finished_at,
-            metadata=self.doc.metadata,
+            file_name=self.doc.file_name,
+            content_type=self.doc.content_type,
+            worker_log='',  # TODO: worker logs
             document_uuid=self.doc_uuid,
         )
         self.log.info(f'Document {self.doc_uuid} record finalized')
@@ -152,6 +152,7 @@ class Job:
     def set_job_state(self, state: str) -> bool:
         return self.ctx.app.db.update_document_state(
             document_uuid=self.doc_uuid,
+            worker_log='',  # TODO: worker logs
             state=state,
         )
 
