@@ -35,6 +35,10 @@ class FormatConversionException(Exception):
         self.target_format = target_format
         self.message = message
 
+    def __str__(self):
+        return f'{self.convertor} failed to convert {self.source_format}' \
+               f' to {self.target_format} - {self.message}'
+
 
 class WkHtmlToPdf:
 

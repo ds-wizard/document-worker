@@ -21,14 +21,15 @@ class DocWorkerLogger(logging.Logger):
         self.addFilter(DocWorkerLogFilter())
 
 
-class _DocWorkerLoggerWrapper:
+class _DocWorkerLoggerWrapper(logging.Logger):
 
     ATTR_MAP = {
         'trace_id': 'traceId',
         'document_id': 'documentId',
     }
 
-    def __init__(self, trace_id: str, document_id: str):
+    def __init__(self, trace_id: str, document_id: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._extra = dict()  # type: Dict[str, Any]
         self._logger = logging.getLogger(LOGGER_NAME)
         self.trace_id = trace_id
@@ -46,23 +47,23 @@ class _DocWorkerLoggerWrapper:
         else:
             return super().__getattribute__(name)
 
-    def _log(self, level: int, message: str, **kwargs):
+    def _xlog(self, level: int, message: str, **kwargs):
         self._logger.log(level=level, msg=message, extra=self._extra, **kwargs)
 
     def log(self, *args, **kwargs):
         self._logger.log(*args, extra=self._extra, **kwargs)
 
-    def debug(self, message: str, **kwargs):
-        self._log(level=logging.DEBUG, message=message, **kwargs)
+    def debug(self, msg: str, *args, **kwargs):
+        self._xlog(level=logging.DEBUG, message=msg, **kwargs)
 
-    def info(self, message: str, **kwargs):
-        self._log(level=logging.INFO, message=message, **kwargs)
+    def info(self, msg: str, *args, **kwargs):
+        self._xlog(level=logging.INFO, message=msg, **kwargs)
 
-    def warning(self, message: str, **kwargs):
-        self._log(level=logging.WARNING, message=message, **kwargs)
+    def warning(self, msg: str, *args, **kwargs):
+        self._xlog(level=logging.WARNING, message=msg, **kwargs)
 
-    def error(self, message: str, **kwargs):
-        self._log(level=logging.ERROR, message=message, **kwargs)
+    def error(self, msg: str, *args, **kwargs):
+        self._xlog(level=logging.ERROR, message=msg, **kwargs)
 
     def set_level(self, level: str):
         self._logger.setLevel(level)

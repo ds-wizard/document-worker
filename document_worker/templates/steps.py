@@ -1,4 +1,5 @@
 import jinja2  # type: ignore
+import jinja2.exceptions  # type: ignore
 import json
 
 from typing import Optional
@@ -13,6 +14,9 @@ class FormatStepException(Exception):
 
     def __init__(self, message):
         self.message = message
+
+    def __str__(self):
+        return self.message
 
 
 class Step:
@@ -54,6 +58,15 @@ class Jinja2Step(Step):
     OPTION_CONTENT_TYPE = 'content-type'
     OPTION_EXTENSION = 'extension'
 
+    def _jinja_exception_msg(self, e: jinja2.exceptions.TemplateSyntaxError):
+        lines = [
+            'Failed loading Jinja2 template due to syntax error:',
+            f'- {e.message}',
+            f'- Filename: {e.name}',
+            f'- Line number: {e.lineno}',
+        ]
+        return '\n'.join(lines)
+
     def __init__(self, template, options: dict):
         super().__init__(template, options)
         self.root_file = self.options[self.OPTION_ROOT_FILE]
@@ -68,6 +81,8 @@ class Jinja2Step(Step):
             )
             self._add_j2_enhancements()
             self.j2_root_template = self.j2_env.get_template(self.root_file)
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            self.raise_exc(self._jinja_exception_msg(e))
         except Exception as e:
             self.raise_exc(f'Failed loading Jinja2 template: {e}')
 
@@ -84,15 +99,18 @@ class Jinja2Step(Step):
         def asset_path(file_name):
             return self.template.asset_path(file_name)
 
-        return DocumentFile(
-            self.output_format,
-            self.j2_root_template.render(
+        content = b''
+        try:
+            content = self.j2_root_template.render(
                 ctx=context,
                 assets=asset_fetcher,
                 asset_path=asset_path,
-            ).encode(DEFAULT_ENCODING),
-            DEFAULT_ENCODING
-        )
+            ).encode(DEFAULT_ENCODING)
+        except jinja2.exceptions.TemplateRuntimeError as e:
+            self.raise_exc(f'Failed rendering Jinja2 template due to'
+                           f' {type(e).__name__}\n'
+                           f'- {str(e)}')
+        return DocumentFile(self.output_format, content, DEFAULT_ENCODING)
 
     def execute_follow(self, document: DocumentFile) -> Optional[DocumentFile]:
         return self.raise_exc(f'Step "{self.NAME}" cannot process other files')
