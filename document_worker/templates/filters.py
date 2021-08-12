@@ -1,6 +1,6 @@
 import datetime
 import jinja2
-import markdown2
+import markdown
 
 from typing import Any
 
@@ -42,10 +42,15 @@ def roman(n: int) -> str:
     return result
 
 
-def markdown(md_text: str):
+def xmarkdown(md_text: str):
     if md_text is None:
         return ''
-    return jinja2.Markup(markdown2.markdown(md_text))
+    return jinja2.Markup(markdown.markdown(
+        text=md_text,
+        extensions=[
+            'mdx_breakless_lists',
+        ]
+    ))
 
 
 def dot(text: str):
@@ -113,7 +118,7 @@ filters = {
     'extract': extract,
     'of_alphabet': of_alphabet,
     'roman': roman,
-    'markdown': markdown,
+    'markdown': xmarkdown,
     'dot': dot,
     'reply_str_value': reply_str_value,
     'reply_int_value': reply_int_value,

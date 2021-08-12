@@ -26,7 +26,8 @@ setup(
     install_requires=[
         'click',
         'jinja2',
-        'markdown2',
+        'Markdown',
+        'mdx-breakless-lists',
         'minio',
         'pathvalidate',
         'psycopg2',
