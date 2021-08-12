@@ -1,11 +1,11 @@
 # Data Stewardship Wizard Document Worker
 
-[![Documentation Status](https://readthedocs.org/projects/ds-wizard/badge/?version=latest)](https://docs.ds-wizard.org/en/latest/?badge=latest)
+[![User Guide](https://img.shields.io/badge/docs-User%20Guide-informational)](https://guide.ds-wizard.org)
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ds-wizard/document-worker)](https://github.com/ds-wizard/document-worker/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/datastewardshipwizard/document-worker)](https://hub.docker.com/r/datastewardshipwizard/document-worker)
 [![Document Worker CI](https://github.com/ds-wizard/document-worker/workflows/Document%20Worker%20CI/badge.svg?branch=master)](https://github.com/ds-wizard/document-worker/actions)
 [![GitHub](https://img.shields.io/github/license/ds-wizard/document-worker)](LICENSE)
-[![Documentation Status](https://readthedocs.org/projects/ds-wizard/badge/?version=latest)](https://docs.ds-wizard.org/en/latest/)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4975/badge)](https://bestpractices.coreinfrastructure.org/projects/4975)
 
 *Worker for assembling and transforming documents*
 
