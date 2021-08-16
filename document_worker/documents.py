@@ -103,7 +103,7 @@ def _name_uuid(document: DBDocument) -> str:
 
 
 def _name_sanitize(document: DBDocument) -> str:
-    name = pathvalidate.sanitize_filename(document.name)
+    name = str(pathvalidate.sanitize_filename(document.name))
     if len(name) == 0:
         name = document.uuid
     return name

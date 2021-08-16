@@ -152,7 +152,7 @@ class DocumentWorkerConfigParser:
         },
     }
 
-    REQUIRED = []
+    REQUIRED = []  # type: list[str]
 
     def __init__(self):
         self.cfg = dict()

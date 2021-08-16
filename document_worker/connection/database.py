@@ -1,9 +1,9 @@
 import dataclasses
 import datetime
 import logging
-import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
+import psycopg2  # type: ignore
+import psycopg2.extensions  # type: ignore
+import psycopg2.extras  # type: ignore
 import tenacity
 
 from document_worker.config import DatabaseConfig
@@ -88,16 +88,16 @@ def wrap_json_data(data: dict):
 
 class Database:
 
-    LISTEN = f'LISTEN document_queue_channel;'
-    SELECT_JOB = f'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
-    DELETE_JOB = f'DELETE FROM document_queue WHERE id = %s;'
-    SELECT_DOCUMENT = f'SELECT * FROM document WHERE uuid = %s LIMIT 1;'
-    UPDATE_DOCUMENT_STATE = f'UPDATE document SET state = %s WHERE uuid = %s;'
-    UPDATE_DOCUMENT_RETRIEVED = f'UPDATE document SET retrieved_at = %s, state = %s WHERE uuid = %s;'
-    UPDATE_DOCUMENT_FINISHED = f'UPDATE document SET finished_at = %s, state = %s, metadata = %s WHERE uuid = %s;'
-    SELECT_TEMPLATE = f'SELECT * FROM template WHERE id = %s LIMIT 1;'
-    SELECT_TEMPLATE_FILES = f'SELECT * FROM template_file WHERE template_id = %s;'
-    SELECT_TEMPLATE_ASSETS = f'SELECT * FROM template_asset WHERE template_id = %s;'
+    LISTEN = 'LISTEN document_queue_channel;'
+    SELECT_JOB = 'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
+    DELETE_JOB = 'DELETE FROM document_queue WHERE id = %s;'
+    SELECT_DOCUMENT = 'SELECT * FROM document WHERE uuid = %s LIMIT 1;'
+    UPDATE_DOCUMENT_STATE = 'UPDATE document SET state = %s WHERE uuid = %s;'
+    UPDATE_DOCUMENT_RETRIEVED = 'UPDATE document SET retrieved_at = %s, state = %s WHERE uuid = %s;'
+    UPDATE_DOCUMENT_FINISHED = 'UPDATE document SET finished_at = %s, state = %s, metadata = %s WHERE uuid = %s;'
+    SELECT_TEMPLATE = 'SELECT * FROM template WHERE id = %s LIMIT 1;'
+    SELECT_TEMPLATE_FILES = 'SELECT * FROM template_file WHERE template_id = %s;'
+    SELECT_TEMPLATE_ASSETS = 'SELECT * FROM template_asset WHERE template_id = %s;'
 
     def __init__(self, cfg: DatabaseConfig):
         self.cfg = cfg

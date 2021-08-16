@@ -1,4 +1,4 @@
-import jinja2
+import jinja2  # type: ignore
 import json
 
 from typing import Optional
@@ -210,7 +210,9 @@ class RdfLibConvertStep(Step):
 
     def execute_follow(self, document: DocumentFile) -> DocumentFile:
         if document.file_format != self.input_format:
-            self.raise_exc(f'Unexpected input {document.file_format.name} as input for rdflib-convert (expecting {self.input_format.name})')
+            self.raise_exc(f'Unexpected input {document.file_format.name} '
+                           f'as input for rdflib-convert '
+                           f'(expecting {self.input_format.name})')
         data = self.rdflib_convert(
             self.input_format, self.output_format, document.content, self.options
         )

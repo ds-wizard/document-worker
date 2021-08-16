@@ -17,12 +17,6 @@ class DocumentField:
     METADATA_FILENAME = 'fileName'
 
 
-class TemplateAssetField:
-    UUID = 'uuid'
-    FILENAME = 'fileName'
-    CONTENT_TYPE = 'contentType'
-
-
 class FormatField:
     UUID = 'uuid'
     NAME = 'name'
@@ -32,20 +26,6 @@ class FormatField:
 class StepField:
     NAME = 'name'
     OPTIONS = 'options'
-
-
-class TemplateField:
-    ID = 'id'
-    NAME = 'name'
-    METAMODEL_VERSION = 'metamodelVersion'
-    FILES = 'files'
-    FORMATS = 'formats'
-    ASSETS = 'assets'
-
-
-class JobDataField:
-    DOCUMENT_UUID = 'documentUuid'
-    DOCUMENT_CONTEXT = 'documentContext'
 
 
 class DocumentNamingStrategy:
