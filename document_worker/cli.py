@@ -1,6 +1,6 @@
 import pathlib
 
-import click
+import click  # type: ignore
 from typing import IO
 
 from document_worker.config import DocumentWorkerConfig, DocumentWorkerConfigParser, MissingConfigurationError

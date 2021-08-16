@@ -1,4 +1,4 @@
-import rdflib
+import rdflib  # type: ignore
 import shlex
 import subprocess
 
@@ -41,7 +41,7 @@ class WkHtmlToPdf:
     ARGS1 = ['--quiet', '--load-error-handling', 'ignore']
     ARGS2 = ['--encoding', DEFAULT_ENCODING, '-', '-']
 
-    def __init__(self, config: DocumentWorkerConfig = None):
+    def __init__(self, config: DocumentWorkerConfig):
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
@@ -68,7 +68,7 @@ class WkHtmlToPdf:
 
 class Pandoc:
 
-    def __init__(self, config: DocumentWorkerConfig = None):
+    def __init__(self, config: DocumentWorkerConfig):
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
@@ -103,7 +103,7 @@ class RdfLibConvert:
         FileFormats.JSONLD: 'json-ld',
     }
 
-    def __init__(self, config: DocumentWorkerConfig = None):
+    def __init__(self, config: DocumentWorkerConfig):
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,

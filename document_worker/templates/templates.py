@@ -2,10 +2,10 @@ import base64
 import pathlib
 import shutil
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from document_worker.connection.database import DBTemplate, DBTemplateFile, DBTemplateAsset
-from document_worker.consts import FormatField, TemplateAssetField
+from document_worker.consts import FormatField
 from document_worker.context import Context
 from document_worker.documents import DocumentFile
 from document_worker.templates.formats import Format
@@ -50,8 +50,7 @@ class Template:
         self.template_dir = template_dir
         self.db_template = db_template
         self.template_id = self.db_template.template.template_id
-        self.formats = dict()
-        self.assets = dict()
+        self.formats = dict()  # type: Dict[str, Format]
         self.prepare_template_files()
         self.prepare_template_assets()
 
@@ -62,17 +61,17 @@ class Template:
         Context.logger.info(f'Fetching asset "{file_name}"')
         file_path = self.template_dir / file_name
         asset = None
-        for a in self.assets:
-            if a[TemplateAssetField.FILENAME] == file_name:
+        for a in self.db_template.assets:
+            if a.file_name == file_name:
                 asset = a
                 break
         if asset is None or not file_path.exists():
             Context.logger.error(f'Asset "{file_name}" not found')
             return None
         return Asset(
-            asset_uuid=asset[TemplateAssetField.UUID],
+            asset_uuid=asset.uuid,
             filename=file_name,
-            content_type=asset[TemplateAssetField.CONTENT_TYPE],
+            content_type=asset.content_type,
             data=file_path.read_bytes()
         )
 
@@ -139,4 +138,3 @@ def prepare_template(template: DBTemplate, files: List[DBTemplateFile],
             db_assets=assets,
         ),
     )
-

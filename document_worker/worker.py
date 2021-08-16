@@ -86,7 +86,7 @@ class Job:
         state = self.doc.state
         self.log.info(f'Original state of job is {state}')
         if state == DocumentState.FINISHED:
-            self.raise_exc(f'Job is already finished')
+            self.raise_exc('Job is already finished')
         self.ctx.app.db.update_document_retrieved(
             retrieved_at=self.doc.retrieved_at,
             document_uuid=self.doc_uuid,
@@ -116,7 +116,7 @@ class Job:
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
-        self.log.info(f'Building document by rendering template with context')
+        self.log.info('Building document by rendering template with context')
         self.final_file = self.template.render(
             format_uuid=self.doc.format_uuid,
             context=self.doc_context,
@@ -223,22 +223,22 @@ class DocumentWorker:
     )
     def run(self):
         ctx = Context.get()
-        Context.logger.info(f'Preparing to listen for document jobs')
+        Context.logger.info('Preparing to listen for document jobs')
         queue_conn = ctx.app.db.conn_queue
         with queue_conn.new_cursor() as cursor:
             cursor.execute(Database.LISTEN)
             queue_conn.listening = True
-            Context.logger.info(f'Listening on document job queue')
+            Context.logger.info('Listening on document job queue')
 
             notifications = list()
             timeout = ctx.app.cfg.db.queue_timout
 
-            Context.logger.info(f'Entering working cycle, waiting for notifications')
+            Context.logger.info('Entering working cycle, waiting for notifications')
             while True:
                 while self._work():
                     pass
 
-                Context.logger.debug(f'Waiting for new notifications')
+                Context.logger.debug('Waiting for new notifications')
                 notifications.clear()
                 if not queue_conn.listening:
                     cursor.execute(Database.LISTEN)
@@ -256,7 +256,7 @@ class DocumentWorker:
                     Context.logger.debug(f'Notifications: {notifications}')
 
                 if INTERRUPTED:
-                    Context.logger.debug(f'Interrupt signal received, ending...')
+                    Context.logger.debug('Interrupt signal received, ending...')
                     break
 
     @tenacity.retry(
@@ -269,7 +269,7 @@ class DocumentWorker:
     def _work(self):
         Context.update_trace_id(str(uuid.uuid4()))
         ctx = Context.get()
-        Context.logger.debug(f'Trying to fetch a new job')
+        Context.logger.debug('Trying to fetch a new job')
         cursor = ctx.app.db.conn_query.new_cursor()
         cursor.execute(Database.SELECT_JOB)
         result = cursor.fetchall()
@@ -281,13 +281,13 @@ class DocumentWorker:
         Context.logger.info(f'Fetched job #{db_job.id}')
         job = Job(db_job=db_job)
         job.run()
-        Context.logger.debug(f'Working done, deleting job from queue')
+        Context.logger.debug('Working done, deleting job from queue')
         cursor.execute(
             query=Database.DELETE_JOB,
             vars=(db_job.id,)
         )
-        Context.logger.info(f'Committing transaction')
+        Context.logger.info('Committing transaction')
         ctx.app.db.conn_query.connection.commit()
         cursor.close()
-        job.log.info(f'Job processing finished')
+        job.log.info('Job processing finished')
         return True

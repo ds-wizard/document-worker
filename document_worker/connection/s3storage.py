@@ -1,7 +1,7 @@
 import contextlib
 import logging
-import minio
-import minio.error
+import minio  # type: ignore
+import minio.error  # type: ignore
 import pathlib
 import tempfile
 import tenacity

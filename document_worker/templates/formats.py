@@ -1,5 +1,3 @@
-import logging
-
 from document_worker.templates.steps import create_step, FormatStepException
 from document_worker.consts import FormatField, StepField
 from document_worker.context import Context

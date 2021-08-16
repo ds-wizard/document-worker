@@ -1,5 +1,5 @@
 import datetime
-import jinja2
+import jinja2  # type: ignore
 import markdown
 
 from typing import Any
@@ -60,7 +60,7 @@ def dot(text: str):
 
 
 def _has_value(reply: dict) -> bool:
-    return reply and 'value' in reply.keys() and 'value' in reply['value'].keys()
+    return bool(reply) and ('value' in reply.keys()) and ('value' in reply['value'].keys())
 
 
 def _get_value(reply: dict) -> Any:
