@@ -72,4 +72,5 @@ class _DocWorkerLoggerWrapper(logging.Logger):
 LOGGER = _DocWorkerLoggerWrapper(
     trace_id='-',
     document_id='-',
+    name=f'{LOGGER_NAME}_WRAP',
 )
