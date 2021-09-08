@@ -1,9 +1,9 @@
 import dataclasses
 import datetime
 import logging
-import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
+import psycopg2  # type: ignore
+import psycopg2.extensions  # type: ignore
+import psycopg2.extras  # type: ignore
 import tenacity
 
 from document_worker.config import DatabaseConfig
@@ -42,7 +42,9 @@ class DBDocument:
     questionnaire_replies_hash: str
     template_id: str
     format_uuid: str
-    metadata: dict
+    file_name: str
+    content_type: str
+    worker_log: str
     creator_uuid: str
     retrieved_at: Optional[datetime.datetime]
     finished_at: Optional[datetime.datetime]
@@ -88,16 +90,17 @@ def wrap_json_data(data: dict):
 
 class Database:
 
-    LISTEN = f'LISTEN document_queue_channel;'
-    SELECT_JOB = f'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
-    DELETE_JOB = f'DELETE FROM document_queue WHERE id = %s;'
-    SELECT_DOCUMENT = f'SELECT * FROM document WHERE uuid = %s LIMIT 1;'
-    UPDATE_DOCUMENT_STATE = f'UPDATE document SET state = %s WHERE uuid = %s;'
-    UPDATE_DOCUMENT_RETRIEVED = f'UPDATE document SET retrieved_at = %s, state = %s WHERE uuid = %s;'
-    UPDATE_DOCUMENT_FINISHED = f'UPDATE document SET finished_at = %s, state = %s, metadata = %s WHERE uuid = %s;'
-    SELECT_TEMPLATE = f'SELECT * FROM template WHERE id = %s LIMIT 1;'
-    SELECT_TEMPLATE_FILES = f'SELECT * FROM template_file WHERE template_id = %s;'
-    SELECT_TEMPLATE_ASSETS = f'SELECT * FROM template_asset WHERE template_id = %s;'
+    LISTEN = 'LISTEN document_queue_channel;'
+    SELECT_JOB = 'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
+    DELETE_JOB = 'DELETE FROM document_queue WHERE id = %s;'
+    SELECT_DOCUMENT = 'SELECT * FROM document WHERE uuid = %s LIMIT 1;'
+    UPDATE_DOCUMENT_STATE = 'UPDATE document SET state = %s, worker_log = %s WHERE uuid = %s;'
+    UPDATE_DOCUMENT_RETRIEVED = 'UPDATE document SET retrieved_at = %s, state = %s WHERE uuid = %s;'
+    UPDATE_DOCUMENT_FINISHED = 'UPDATE document SET finished_at = %s, state = %s, ' \
+                               'file_name = %s, content_type = %s, worker_log = %s WHERE uuid = %s;'
+    SELECT_TEMPLATE = 'SELECT * FROM template WHERE id = %s LIMIT 1;'
+    SELECT_TEMPLATE_FILES = 'SELECT * FROM template_file WHERE template_id = %s;'
+    SELECT_TEMPLATE_ASSETS = 'SELECT * FROM template_asset WHERE template_id = %s;'
 
     def __init__(self, cfg: DatabaseConfig):
         self.cfg = cfg
@@ -141,11 +144,13 @@ class Database:
             questionnaire_replies_hash=result[6],
             template_id=result[7],
             format_uuid=result[8],
-            metadata=result[9],
-            creator_uuid=result[10],
-            retrieved_at=result[11],
-            finished_at=result[12],
-            created_at=result[13],
+            creator_uuid=result[9],
+            retrieved_at=result[10],
+            finished_at=result[11],
+            created_at=result[12],
+            file_name=result[13],
+            content_type=result[14],
+            worker_log=result[15],
         )
 
     @classmethod
@@ -257,11 +262,11 @@ class Database:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def update_document_state(self, document_uuid: str, state: str) -> bool:
+    def update_document_state(self, document_uuid: str, worker_log: str, state: str) -> bool:
         with self.conn_query.new_cursor() as cursor:
             cursor.execute(
                 query=self.UPDATE_DOCUMENT_STATE,
-                vars=(state, document_uuid),
+                vars=(state, worker_log, document_uuid),
             )
             return cursor.rowcount == 1
 
@@ -292,15 +297,19 @@ class Database:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def update_document_finished(self, finished_at: datetime.datetime,
-                                 metadata: dict, document_uuid: str) -> bool:
+    def update_document_finished(
+            self, finished_at: datetime.datetime, file_name: str,
+            content_type: str,  worker_log: str, document_uuid: str
+    ) -> bool:
         with self.conn_query.new_cursor() as cursor:
             cursor.execute(
                 query=self.UPDATE_DOCUMENT_FINISHED,
                 vars=(
                     finished_at,
                     DocumentState.FINISHED,
-                    wrap_json_data(metadata),
+                    file_name,
+                    content_type,
+                    worker_log,
                     document_uuid,
                 ),
             )

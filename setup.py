@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='3.2.0',
+    version='3.3.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -26,7 +26,8 @@ setup(
     install_requires=[
         'click',
         'jinja2',
-        'markdown2',
+        'Markdown',
+        'mdx-breakless-lists',
         'minio',
         'pathvalidate',
         'psycopg2',

@@ -13,9 +13,10 @@ from typing import Optional
 from document_worker.config import DocumentWorkerConfig
 from document_worker.connection.database import Database, DBJob, DBDocument
 from document_worker.connection.s3storage import S3Storage
-from document_worker.consts import DocumentState, DocumentField
+from document_worker.consts import DocumentState
 from document_worker.context import Context
 from document_worker.documents import DocumentFile, DocumentNameGiver
+from document_worker.exceptions import create_job_exception, JobException
 from document_worker.logging import DocWorkerLogger, DocWorkerLogFilter
 from document_worker.templates import prepare_template
 
@@ -37,25 +38,19 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGABRT, signal_handler)
 
 
-class JobException(Exception):
-
-    def __init__(self, job_id: str, message: str):
-        self.job_id = job_id
-        self.message = message
-
-
 def handle_job_step(message):
     def decorator(func):
         @functools.wraps(func)
         def handled_step(job, *args, **kwargs):
             try:
                 return func(job, *args, **kwargs)
-            except JobException as e:
-                job.log.debug('Handling job exception', exc_info=True)
-                raise e
             except Exception as e:
                 job.log.debug('Handling exception', exc_info=True)
-                job.raise_exc(f'{message}: [{type(e).__name__}] {e}')
+                raise create_job_exception(
+                    job_id=job.doc_uuid,
+                    message=message,
+                    exc=e,
+                )
         return handled_step
     return decorator
 
@@ -71,22 +66,25 @@ class Job:
         self.doc = None  # type: Optional[DBDocument]
         self.final_file = None  # type: Optional[DocumentFile]
 
-    def raise_exc(self, message: str):
-        raise JobException(self.doc_uuid, message)
-
     @handle_job_step('Failed to get document from DB')
     def get_document(self):
         self.log.info(f'Getting the document "{self.doc_uuid}" details from DB')
         self.doc = self.ctx.app.db.fetch_document(document_uuid=self.doc_uuid)
         if self.doc is None:
-            self.raise_exc(f'Document "{self.doc_uuid}" not found')
+            raise create_job_exception(
+                job_id=self.doc_uuid,
+                message='Document record not found in database',
+            )
         self.doc.retrieved_at = datetime.datetime.now()
         self.log.info(f'Job "{self.doc_uuid}" details received')
         # verify state
         state = self.doc.state
         self.log.info(f'Original state of job is {state}')
         if state == DocumentState.FINISHED:
-            self.raise_exc(f'Job is already finished')
+            raise create_job_exception(
+                job_id=self.doc_uuid,
+                message='Document is already marked as finished',
+            )
         self.ctx.app.db.update_document_retrieved(
             retrieved_at=self.doc.retrieved_at,
             document_uuid=self.doc_uuid,
@@ -100,7 +98,10 @@ class Job:
         # prepare template
         db_template = self.ctx.app.db.fetch_template(template_id=template_id)
         if db_template is None:
-            self.raise_exc(f'Template {template_id} not found')
+            raise create_job_exception(
+                job_id=self.doc_uuid,
+                message=f'Template {template_id} not found in database',
+            )
         # prepare template files
         db_files = self.ctx.app.db.fetch_template_files(template_id=template_id)
         db_assets = self.ctx.app.db.fetch_template_assets(template_id=template_id)
@@ -111,12 +112,11 @@ class Job:
             assets=db_assets,
         )
         # prepare format
-        if not self.template.prepare_format(format_uuid):
-            self.raise_exc(f'Format {format_uuid} (in template {template_id}) not found')
+        self.template.prepare_format(format_uuid)
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
-        self.log.info(f'Building document by rendering template with context')
+        self.log.info('Building document by rendering template with context')
         self.final_file = self.template.render(
             format_uuid=self.doc.format_uuid,
             context=self.doc_context,
@@ -138,26 +138,27 @@ class Job:
     def finalize(self):
         file_name = DocumentNameGiver.name_document(self.doc, self.final_file)
         self.doc.finished_at = datetime.datetime.now()
-        self.doc.metadata = {
-            DocumentField.METADATA_CONTENT_TYPE: self.final_file.content_type,
-            DocumentField.METADATA_FILENAME: file_name,
-        }
+        self.doc.file_name = file_name
+        self.doc.content_type = self.final_file.content_type
         self.ctx.app.db.update_document_finished(
             finished_at=self.doc.finished_at,
-            metadata=self.doc.metadata,
+            file_name=self.doc.file_name,
+            content_type=self.doc.content_type,
+            worker_log='Document generated successfully... Enjoy!',
             document_uuid=self.doc_uuid,
         )
         self.log.info(f'Document {self.doc_uuid} record finalized')
 
-    def set_job_state(self, state: str) -> bool:
+    def set_job_state(self, state: str, message: str) -> bool:
         return self.ctx.app.db.update_document_state(
             document_uuid=self.doc_uuid,
+            worker_log=message,
             state=state,
         )
 
-    def try_set_job_state(self, state: str) -> bool:
+    def try_set_job_state(self, state: str, message: str) -> bool:
         try:
-            return self.set_job_state(state)
+            return self.set_job_state(state, message)
         except Exception as e:
             self.log.warning(f'Tried to set state of {self.doc_uuid} to {state} but failed: {e}')
             return False
@@ -166,19 +167,23 @@ class Job:
         try:
             self.get_document()
             self.prepare_template()
-            self.set_job_state(DocumentState.FAILED)
             self.build_document()
             self.store_document()
             self.finalize()
         except JobException as e:
-            self.log.error(e.message)
-            if self.try_set_job_state(DocumentState.FAILED):
+            self.log.error(e.log_message())
+            if self.try_set_job_state(DocumentState.FAILED, e.db_message()):
                 self.log.info(f'Set state to {DocumentState.FAILED}')
             else:
                 self.log.warning(f'Could not set state to {DocumentState.FAILED}')
         except Exception as e:
-            Context.logger.error(f'Job failed with error: {e}')
-            if self.try_set_job_state(DocumentState.FAILED):
+            job_exc = create_job_exception(
+                job_id=self.doc_uuid,
+                message='Failed with unexpected error',
+                exc=e,
+            )
+            Context.logger.error(job_exc.log_message())
+            if self.try_set_job_state(DocumentState.FAILED, job_exc.db_message()):
                 self.log.info(f'Set state to {DocumentState.FAILED}')
             else:
                 self.log.warning(f'Could not set state to {DocumentState.FAILED}')
@@ -223,22 +228,22 @@ class DocumentWorker:
     )
     def run(self):
         ctx = Context.get()
-        Context.logger.info(f'Preparing to listen for document jobs')
+        Context.logger.info('Preparing to listen for document jobs')
         queue_conn = ctx.app.db.conn_queue
         with queue_conn.new_cursor() as cursor:
             cursor.execute(Database.LISTEN)
             queue_conn.listening = True
-            Context.logger.info(f'Listening on document job queue')
+            Context.logger.info('Listening on document job queue')
 
             notifications = list()
             timeout = ctx.app.cfg.db.queue_timout
 
-            Context.logger.info(f'Entering working cycle, waiting for notifications')
+            Context.logger.info('Entering working cycle, waiting for notifications')
             while True:
                 while self._work():
                     pass
 
-                Context.logger.debug(f'Waiting for new notifications')
+                Context.logger.debug('Waiting for new notifications')
                 notifications.clear()
                 if not queue_conn.listening:
                     cursor.execute(Database.LISTEN)
@@ -256,7 +261,7 @@ class DocumentWorker:
                     Context.logger.debug(f'Notifications: {notifications}')
 
                 if INTERRUPTED:
-                    Context.logger.debug(f'Interrupt signal received, ending...')
+                    Context.logger.debug('Interrupt signal received, ending...')
                     break
 
     @tenacity.retry(
@@ -269,7 +274,7 @@ class DocumentWorker:
     def _work(self):
         Context.update_trace_id(str(uuid.uuid4()))
         ctx = Context.get()
-        Context.logger.debug(f'Trying to fetch a new job')
+        Context.logger.debug('Trying to fetch a new job')
         cursor = ctx.app.db.conn_query.new_cursor()
         cursor.execute(Database.SELECT_JOB)
         result = cursor.fetchall()
@@ -281,13 +286,13 @@ class DocumentWorker:
         Context.logger.info(f'Fetched job #{db_job.id}')
         job = Job(db_job=db_job)
         job.run()
-        Context.logger.debug(f'Working done, deleting job from queue')
+        Context.logger.debug('Working done, deleting job from queue')
         cursor.execute(
             query=Database.DELETE_JOB,
             vars=(db_job.id,)
         )
-        Context.logger.info(f'Committing transaction')
+        Context.logger.info('Committing transaction')
         ctx.app.db.conn_query.connection.commit()
         cursor.close()
-        job.log.info(f'Job processing finished')
+        job.log.info('Job processing finished')
         return True

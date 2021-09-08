@@ -1,4 +1,4 @@
-import rdflib
+import rdflib  # type: ignore
 import shlex
 import subprocess
 
@@ -35,13 +35,17 @@ class FormatConversionException(Exception):
         self.target_format = target_format
         self.message = message
 
+    def __str__(self):
+        return f'{self.convertor} failed to convert {self.source_format}' \
+               f' to {self.target_format} - {self.message}'
+
 
 class WkHtmlToPdf:
 
     ARGS1 = ['--quiet', '--load-error-handling', 'ignore']
     ARGS2 = ['--encoding', DEFAULT_ENCODING, '-', '-']
 
-    def __init__(self, config: DocumentWorkerConfig = None):
+    def __init__(self, config: DocumentWorkerConfig):
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
@@ -68,7 +72,7 @@ class WkHtmlToPdf:
 
 class Pandoc:
 
-    def __init__(self, config: DocumentWorkerConfig = None):
+    def __init__(self, config: DocumentWorkerConfig):
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
@@ -103,7 +107,7 @@ class RdfLibConvert:
         FileFormats.JSONLD: 'json-ld',
     }
 
-    def __init__(self, config: DocumentWorkerConfig = None):
+    def __init__(self, config: DocumentWorkerConfig):
         self.config = config
 
     def __call__(self, source_format: FileFormat, target_format: FileFormat,
