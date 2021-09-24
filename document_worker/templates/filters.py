@@ -1,8 +1,12 @@
 import datetime
+import dateutil.parser as dp
 import jinja2  # type: ignore
 import markdown
 
-from typing import Any
+from typing import Any, Union
+
+from document_worker.model import DocumentContext
+from document_worker.logging import LOGGER
 
 
 _alphabet = [chr(x) for x in range(ord('a'), ord('z') + 1)]
@@ -11,11 +15,12 @@ _romans = [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, '
            (50, 'L'), (40, 'XL'), (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]
 
 
-def datetime_format(iso_timestamp: str, fmt: str):
+def datetime_format(iso_timestamp: Union[None, datetime.datetime, str], fmt: str):
     if iso_timestamp is None:
         return ''
-    timestamp_stripped = iso_timestamp.split('.')[0]
-    return datetime.datetime.strptime(timestamp_stripped, '%Y-%m-%dT%H:%M:%S').strftime(fmt)
+    if not isinstance(iso_timestamp, datetime.datetime):
+        iso_timestamp = dp.isoparse(iso_timestamp)
+    return iso_timestamp.strftime(fmt)
 
 
 def extract(obj, keys):
@@ -111,6 +116,15 @@ def reply_path(uuids: list) -> str:
     return '.'.join(map(str, uuids))
 
 
+def to_context_obj(ctx, **options) -> DocumentContext:
+    LOGGER.debug('DocumentContext object requested')
+    result = DocumentContext(ctx, **options)
+    LOGGER.debug('DocumentContext object created')
+    result._resolve_links()
+    LOGGER.debug('DocumentContext object links resolved')
+    return result
+
+
 filters = {
     'any': any,
     'all': all,
@@ -126,4 +140,5 @@ filters = {
     'reply_items': reply_items,
     'find_reply': find_reply,
     'reply_path': reply_path,
+    'to_context_obj': to_context_obj,
 }
