@@ -18,6 +18,16 @@
 
 For more information, see [deployment example](https://github.com/ds-wizard/dsw-deployment-example).
 
+## Documentation
+
+For general information, please visit our [User Guide](https://guide.ds-wizard.org).
+
+DSW Document Worker technical documentation for template development:
+
+* [Document Context](./support/DocumentContext.md)
+* [Jinja Filters](./support/JinjaFilters.md)
+* [Jinja Tests](./support/JinjaTests.md)
+
 ## Docker
 
 Docker image is prepared with basic dependencies and worker installed. It is available though Docker Hub: [datastewardshipwizard/document-worker](https://hub.docker.com/r/datastewardshipwizard/document-worker).

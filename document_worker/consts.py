@@ -3,6 +3,7 @@ EXIT_SUCCESS = 0
 VERSION = '3.3.0'
 PROG_NAME = 'docworker'
 LOGGER_NAME = 'docworker'
+CURRENT_METAMODEL = 4
 
 
 class DocumentState:

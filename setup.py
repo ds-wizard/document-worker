@@ -35,6 +35,7 @@ setup(
         'rdflib',
         'rdflib-jsonld',
         'python-slugify',
+        'python-dateutil',
         'tenacity',
     ],
     entry_points={
