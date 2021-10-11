@@ -13,7 +13,7 @@ pyparsing==2.4.7
 python-dateutil==2.8.2
 python-slugify==5.0.2
 PyYAML==5.4.1
-rdflib==6.0.1
+rdflib==6.0.2
 rdflib-jsonld==0.6.2
 six==1.16.0
 tenacity==8.0.1
