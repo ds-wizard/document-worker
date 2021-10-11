@@ -6,7 +6,7 @@ Jinja2==3.0.1
 Markdown==3.3.4
 MarkupSafe==2.0.1
 mdx-breakless-lists==1.0.1
-minio==7.1.0
+minio==7.1.1
 pathvalidate==2.5.0
 psycopg2==2.9.1
 pyparsing==2.4.7
