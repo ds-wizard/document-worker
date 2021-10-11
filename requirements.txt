@@ -1,4 +1,4 @@
-certifi==2021.5.30
+certifi==2021.10.8
 click==8.0.1
 colorama==0.4.4
 isodate==0.6.0
