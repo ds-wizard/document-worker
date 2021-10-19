@@ -10,11 +10,16 @@ def _datetime(timestamp: str) -> datetime.datetime:
 
 class Tag:
 
-    def __init__(self, uuid, name, description, color):
+    def __init__(self, uuid, name, description, color, annotations):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
         self.description = description  # type: Optional[str]
         self.color = color  # type: str
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Tag):
@@ -28,13 +33,15 @@ class Tag:
             name=data['name'],
             description=data['description'],
             color=data['color'],
+            annotations=data['annotations'],
         )
 
 
 class Integration:
 
     def __init__(self, uuid, name, logo, id, item_url, props, rq_body, rq_headers,
-                 rq_method, rq_url, rs_id_field, rs_list_field, rs_name_field):
+                 rq_method, rq_url, rs_id_field, rs_list_field, rs_name_field,
+                 annotations):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
         self.id = id  # type: str
@@ -48,6 +55,11 @@ class Integration:
         self.rs_id_field = rs_id_field  # type: str
         self.rs_list_field = rs_list_field  # type: str
         self.rs_name_field = rs_name_field  # type: str
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def item(self, item_id: str) -> str:
         return self.item_url.replace('${id}', item_id)
@@ -73,16 +85,22 @@ class Integration:
             rs_id_field=data['responseIdField'],
             rs_list_field=data['responseListField'],
             rs_name_field=data['responseNameField'],
+            annotations=data['annotations'],
         )
 
 
 class Phase:
 
-    def __init__(self, uuid, title, description):
+    def __init__(self, uuid, title, description, annotations):
         self.uuid = uuid  # type: str
         self.title = title  # type: str
         self.description = description  # type: Optional[str]
         self.order = 0  # type: int
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Phase):
@@ -95,16 +113,22 @@ class Phase:
             uuid=data['uuid'],
             title=data['title'],
             description=data['description'],
+            annotations=data['annotations'],
         )
 
 
 class Metric:
 
-    def __init__(self, uuid, title, description, abbreviation):
+    def __init__(self, uuid, title, description, abbreviation, annotations):
         self.uuid = uuid  # type: str
         self.title = title  # type: str
         self.description = description  # type: Optional[str]
         self.abbreviation = abbreviation  # type: str
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Metric):
@@ -118,6 +142,7 @@ class Metric:
             title=data['title'],
             description=data['description'],
             abbreviation=data['abbreviation'],
+            annotations=data['annotations'],
         )
 
 
@@ -143,9 +168,14 @@ class MetricMeasure:
 
 class Reference:
 
-    def __init__(self, uuid, ref_type):
+    def __init__(self, uuid, ref_type, annotations):
         self.uuid = uuid  # type: str
         self.type = ref_type  # type: str
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Reference):
@@ -158,8 +188,8 @@ class Reference:
 
 class CrossReference(Reference):
 
-    def __init__(self, uuid, target_uuid, description):
-        super().__init__(uuid, 'CrossReference')
+    def __init__(self, uuid, target_uuid, description, annotations):
+        super().__init__(uuid, 'CrossReference', annotations)
         self.target_uuid = target_uuid  # type: str
         self.description = description  # type: str
 
@@ -169,13 +199,14 @@ class CrossReference(Reference):
             uuid=data['uuid'],
             target_uuid=data['targetUuid'],
             description=data['description'],
+            annotations=data['annotations'],
         )
 
 
 class URLReference(Reference):
 
-    def __init__(self, uuid, label, url):
-        super().__init__(uuid, 'URLReference')
+    def __init__(self, uuid, label, url, annotations):
+        super().__init__(uuid, 'URLReference', annotations)
         self.label = label  # type: str
         self.url = url  # type: str
 
@@ -185,13 +216,14 @@ class URLReference(Reference):
             uuid=data['uuid'],
             label=data['label'],
             url=data['url'],
+            annotations=data['annotations'],
         )
 
 
 class ResourcePageReference(Reference):
 
-    def __init__(self, uuid, short_uuid):
-        super().__init__(uuid, 'ResourcePageReference')
+    def __init__(self, uuid, short_uuid, annotations):
+        super().__init__(uuid, 'ResourcePageReference', annotations)
         self.short_uuid = short_uuid  # type: str
         self.url = None  # type: Optional[str]
 
@@ -203,15 +235,21 @@ class ResourcePageReference(Reference):
         return ResourcePageReference(
             uuid=data['uuid'],
             short_uuid=data['shortUuid'],
+            annotations=data['annotations'],
         )
 
 
 class Expert:
 
-    def __init__(self, uuid, name, email):
+    def __init__(self, uuid, name, email, annotations):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
         self.email = email  # type: str
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Expert):
@@ -224,6 +262,7 @@ class Expert:
             uuid=data['uuid'],
             name=data['name'],
             email=data['email'],
+            annotations=data['annotations'],
         )
 
 
@@ -404,7 +443,8 @@ class IntegrationReply(Reply):
 
 class Answer:
 
-    def __init__(self, uuid, label, advice, metric_measures, followup_uuids):
+    def __init__(self, uuid, label, advice, metric_measures, followup_uuids,
+                 annotations):
         self.uuid = uuid  # type: str
         self.label = label  # type: str
         self.advice = advice  # type: Optional[str]
@@ -412,6 +452,11 @@ class Answer:
         self.followup_uuids = followup_uuids  # type: list[str]
         self.followups = list()  # type: list[Question]
         self.parent = None  # type: Optional[OptionsQuestion]
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Answer):
@@ -436,15 +481,21 @@ class Answer:
             advice=data['advice'],
             metric_measures=mm,
             followup_uuids=data['followUpUuids'],
+            annotations=data['annotations'],
         )
 
 
 class Choice:
 
-    def __init__(self, uuid, label):
+    def __init__(self, uuid, label, annotations):
         self.uuid = uuid  # type: str
         self.label = label  # type: str
         self.parent = None  # type: Optional[MultiChoiceQuestion]
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Choice):
@@ -456,13 +507,14 @@ class Choice:
         return Choice(
             uuid=data['uuid'],
             label=data['label'],
+            annotations=data['annotations'],
         )
 
 
 class Question:
 
     def __init__(self, uuid, q_type, title, text, tag_uuids, reference_uuids,
-                 expert_uuids, required_phase_uuid):
+                 expert_uuids, required_phase_uuid, annotations):
         self.uuid = uuid  # type: str
         self.type = q_type  # type: str
         self.title = title  # type: str
@@ -478,6 +530,11 @@ class Question:
         self.replies = dict()  # type: dict[str, Reply]  # added from replies
         self.is_required = None  # type: Optional[bool]
         self.parent = None  # type: Optional[Union[Chapter, ListQuestion, Answer]]
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Question):
@@ -512,10 +569,15 @@ class Question:
 class ValueQuestion(Question):
 
     def __init__(self, uuid, title, text, tag_uuids, reference_uuids,
-                 expert_uuids, required_phase_uuid, value_type):
+                 expert_uuids, required_phase_uuid, value_type, annotations):
         super().__init__(uuid, 'ValueQuestion', title, text, tag_uuids,
-                         reference_uuids, expert_uuids, required_phase_uuid)
+                         reference_uuids, expert_uuids, required_phase_uuid,
+                         annotations)
         self.value_type = value_type  # type: str
+
+    @property
+    def a(self):
+        return self.annotations
 
     @property
     def is_string(self):
@@ -547,15 +609,18 @@ class ValueQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             value_type=data['valueType'],
+            annotations=data['annotations'],
         )
 
 
 class OptionsQuestion(Question):
 
     def __init__(self, uuid, title, text, tag_uuids, reference_uuids,
-                 expert_uuids, required_phase_uuid, answer_uuids):
+                 expert_uuids, required_phase_uuid, answer_uuids,
+                 annotations):
         super().__init__(uuid, 'OptionsQuestion', title, text, tag_uuids,
-                         reference_uuids, expert_uuids, required_phase_uuid)
+                         reference_uuids, expert_uuids, required_phase_uuid,
+                         annotations)
         self.answer_uuids = answer_uuids  # type: list[str]
         self.answers = list()  # type: list[Answer]
 
@@ -577,15 +642,18 @@ class OptionsQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             answer_uuids=data['answerUuids'],
+            annotations=data['annotations'],
         )
 
 
 class MultiChoiceQuestion(Question):
 
     def __init__(self, uuid, title, text, tag_uuids, reference_uuids,
-                 expert_uuids, required_phase_uuid, choice_uuids):
+                 expert_uuids, required_phase_uuid, choice_uuids,
+                 annotations):
         super().__init__(uuid, 'MultiChoiceQuestion', title, text, tag_uuids,
-                         reference_uuids, expert_uuids, required_phase_uuid)
+                         reference_uuids, expert_uuids, required_phase_uuid,
+                         annotations)
         self.choice_uuids = choice_uuids  # type: list[str]
         self.choices = list()  # type: list[Choice]
 
@@ -606,15 +674,18 @@ class MultiChoiceQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             choice_uuids=data['choiceUuids'],
+            annotations=data['annotations'],
         )
 
 
 class ListQuestion(Question):
 
     def __init__(self, uuid, title, text, tag_uuids, reference_uuids,
-                 expert_uuids, required_phase_uuid, followup_uuids):
+                 expert_uuids, required_phase_uuid, followup_uuids,
+                 annotations):
         super().__init__(uuid, 'ListQuestion', title, text, tag_uuids,
-                         reference_uuids, expert_uuids, required_phase_uuid)
+                         reference_uuids, expert_uuids, required_phase_uuid,
+                         annotations)
         self.followup_uuids = followup_uuids  # type: list[str]
         self.followups = list()  # type: list[Question]
 
@@ -636,15 +707,18 @@ class ListQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             followup_uuids=data['itemTemplateQuestionUuids'],
+            annotations=data['annotations'],
         )
 
 
 class IntegrationQuestion(Question):
 
     def __init__(self, uuid, title, text, tag_uuids, reference_uuids, props,
-                 expert_uuids, required_phase_uuid, integration_uuid):
+                 expert_uuids, required_phase_uuid, integration_uuid,
+                 annotations):
         super().__init__(uuid, 'IntegrationQuestion', title, text, tag_uuids,
-                         reference_uuids, expert_uuids, required_phase_uuid)
+                         reference_uuids, expert_uuids, required_phase_uuid,
+                         annotations)
         self.props = props  # type: dict[str, str]
         self.integration_uuid = integration_uuid  # type: str
         self.integration = None  # type: Optional[Integration]
@@ -665,18 +739,24 @@ class IntegrationQuestion(Question):
             required_phase_uuid=data['requiredPhaseUuid'],
             integration_uuid=data['integrationUuid'],
             props=data['props'],
+            annotations=data['annotations'],
         )
 
 
 class Chapter:
 
-    def __init__(self, uuid, title, text, question_uuids):
+    def __init__(self, uuid, title, text, question_uuids, annotations):
         self.uuid = uuid  # type: str
         self.title = title  # type: str
         self.text = text  # type: Optional[str]
         self.question_uuids = question_uuids  # type: list[str]
         self.questions = list()  # type: list[Question]
         self.reports = list()  # type: list[ReportItem]
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     def __eq__(self, other):
         if not isinstance(other, Chapter):
@@ -696,6 +776,7 @@ class Chapter:
             title=data['title'],
             text=data['text'],
             question_uuids=data['questionUuids'],
+            annotations=data['annotations'],
         )
 
 
@@ -777,7 +858,7 @@ class KnowledgeModelEntities:
 class KnowledgeModel:
 
     def __init__(self, uuid, chapter_uuids, tag_uuids, metric_uuids,
-                 phase_uuids, integration_uuids, entities):
+                 phase_uuids, integration_uuids, entities, annotations):
         self.uuid = uuid  # type: str
         self.entities = entities  # type: KnowledgeModelEntities
         self.chapter_uuids = chapter_uuids  # type: list[str]
@@ -790,6 +871,11 @@ class KnowledgeModel:
         self.phases = list()  # type: list[Phase]
         self.integration_uuids = integration_uuids  # type: list[str]
         self.integrations = list()  # type: list[Integration]
+        self.annotations = annotations  # type: dict[str, str]
+
+    @property
+    def a(self):
+        return self.annotations
 
     @property
     def e(self):
@@ -816,6 +902,7 @@ class KnowledgeModel:
             phase_uuids=data['phaseUuids'],
             integration_uuids=data['integrationUuids'],
             entities=KnowledgeModelEntities.load(data['entities'], **options),
+            annotations=data['annotations'],
         )
 
 

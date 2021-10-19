@@ -146,6 +146,7 @@ Aliases:
 ### KnowledgeModel
 
 * `uuid` (`str`)
+* `annotations` (`dict[str,str]`)
 * `entities` ([`KnowledgeModelEntities`](#knowledgemodelentities))
 * `chapters` (`list[`[`Chapter`](#chapter)`]`)
 * `integrations` (`list[`[`Integration`](#integration)`]`)
@@ -156,8 +157,11 @@ Aliases:
 Aliases:
 
 * `e` ([`KnowledgeModelEntities`](#knowledgemodelentities)) - same as `entities`
+* `a` (`dict[str,str]`) - same as `annotations`
 
 :bulb: Equality of all KM entities is being done using the `uuid` comparison under the hood.
+
+:bulb: All KM entities that have `annotations` have also the `a` alias.
 
 #### KnowledgeModelEntities
 
@@ -181,6 +185,7 @@ Container holding all types of Knowledge Model entities within UUID-key dictiona
 * `text` (`Optional[str]`) - possibly Markdown text
 * `questions` (`list[`[`Question`](#question)`]`)
 * `reports` (`list[`[`ReportItem`](#reportitem)`]`)
+* `annotations` (`dict[str,str]`)
 
 #### Question
 
@@ -197,6 +202,7 @@ Superclass with common attributes for all types of questions. You always get a m
 * `references` (`list[`[`Reference`](#reference)`]`)
 * `tags` (`list[`[`Tag`](#tag)`]`)
 * `parent` (`Union[`[`Chapter`](#chapter)`,`[`ListQuestion`](#listquestion)`,`[`Answer`](#answer)`]`)
+* `annotations` (`dict[str,str]`)
 
 Aliases:
 
@@ -241,6 +247,7 @@ Aliases:
 * `metric_measures` (`list[`[`MetricMeasure`](#metricmeasure)`]`)
 * `followups` (`list[`[`Question`](#question)`]`)
 * `parent` ([`OptionsQuestion`](#optionsquestion))
+* `annotations` (`dict[str,str]`)
 
 ##### MetricMeasure
 
@@ -255,12 +262,14 @@ Indication of how an answer affects a certain metric.
 * `uuid` (`str`)
 * `label` (`str`)
 * `parent` ([`MultiChoiceQuestion`](#multichoicequestion))
+* `annotations` (`dict[str,str]`)
 
 #### Expert
 
 * `uuid` (`str`)
 * `name` (`str`)
 * `email` (`str`)
+* `annotations` (`dict[str,str]`)
 
 #### Reference
 
@@ -268,6 +277,7 @@ As for the [`Question`](#question) class, `Reference` is also a superclass and y
 
 * `uuid` (`str`)
 * `type` (`str`)
+* `annotations` (`dict[str,str]`)
 
 ##### URLReference
 
@@ -285,6 +295,7 @@ As for the [`Question`](#question) class, `Reference` is also a superclass and y
 * `title` (`str`)
 * `abbreviation` (`str`)
 * `description` (`Optional[str]`) - possibly Markdown text
+* `annotations` (`dict[str,str]`)
 
 #### Phase
 
@@ -292,6 +303,7 @@ As for the [`Question`](#question) class, `Reference` is also a superclass and y
 * `title` (`str`)
 * `description` (`Optional[str]`) - possibly Markdown text
 * `order` (`int`) - order of the phase within the KM
+* `annotations` (`dict[str,str]`)
 
 #### Integration
 
@@ -308,6 +320,7 @@ As for the [`Question`](#question) class, `Reference` is also a superclass and y
 * `rs_list_field` (`str`)
 * `rs_id_field` (`str`)
 * `rs_name_field` (`str`)
+* `annotations` (`dict[str,str]`)
 
 Operations:
 
@@ -319,6 +332,7 @@ Operations:
 * `name` (`str`)
 * `description` (`Optional[str]`) - possibly Markdown text
 * `color` (`str`)
+* `annotations` (`dict[str,str]`)
 
 ### RepliesContainer
 
