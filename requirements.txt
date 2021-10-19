@@ -1,5 +1,5 @@
 certifi==2021.10.8
-click==8.0.1
+click==8.0.3
 colorama==0.4.4
 isodate==0.6.0
 Jinja2==3.0.1
