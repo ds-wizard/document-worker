@@ -13,7 +13,7 @@ from typing import Optional
 from document_worker.config import DocumentWorkerConfig
 from document_worker.connection.database import Database, DBJob, DBDocument
 from document_worker.connection.s3storage import S3Storage
-from document_worker.consts import DocumentState
+from document_worker.consts import DocumentState, NULL_UUID
 from document_worker.context import Context
 from document_worker.documents import DocumentFile, DocumentNameGiver
 from document_worker.exceptions import create_job_exception, JobException
@@ -61,6 +61,7 @@ class Job:
         self.ctx = Context.get()
         self.log = Context.logger
         self.template = None
+        self.app_uuid = db_job.app_uuid
         self.doc_uuid = db_job.document_uuid
         self.doc_context = db_job.document_context
         self.doc = None  # type: Optional[DBDocument]
@@ -68,8 +69,13 @@ class Job:
 
     @handle_job_step('Failed to get document from DB')
     def get_document(self):
+        if self.app_uuid != NULL_UUID:
+            self.log.info(f'Limiting to app with UUID: {self.app_uuid}')
         self.log.info(f'Getting the document "{self.doc_uuid}" details from DB')
-        self.doc = self.ctx.app.db.fetch_document(document_uuid=self.doc_uuid)
+        self.doc = self.ctx.app.db.fetch_document(
+            document_uuid=self.doc_uuid,
+            app_uuid=self.app_uuid,
+        )
         if self.doc is None:
             raise create_job_exception(
                 job_id=self.doc_uuid,
@@ -96,15 +102,19 @@ class Job:
         format_uuid = self.doc.format_uuid
         self.log.info(f'Document uses template {template_id} with format {format_uuid}')
         # prepare template
-        db_template = self.ctx.app.db.fetch_template(template_id=template_id)
+        query_args = dict(
+            template_id=template_id,
+            app_uuid=self.app_uuid,
+        )
+        db_template = self.ctx.app.db.fetch_template(**query_args)
         if db_template is None:
             raise create_job_exception(
                 job_id=self.doc_uuid,
                 message=f'Template {template_id} not found in database',
             )
         # prepare template files
-        db_files = self.ctx.app.db.fetch_template_files(template_id=template_id)
-        db_assets = self.ctx.app.db.fetch_template_assets(template_id=template_id)
+        db_files = self.ctx.app.db.fetch_template_files(**query_args)
+        db_assets = self.ctx.app.db.fetch_template_assets(**query_args)
         # prepare template
         self.template = prepare_template(
             template=db_template,
@@ -275,7 +285,7 @@ class DocumentWorker:
         Context.update_trace_id(str(uuid.uuid4()))
         ctx = Context.get()
         Context.logger.debug('Trying to fetch a new job')
-        cursor = ctx.app.db.conn_query.new_cursor()
+        cursor = ctx.app.db.conn_query.new_cursor(use_dict=True)
         cursor.execute(Database.SELECT_JOB)
         result = cursor.fetchall()
         if len(result) != 1:
