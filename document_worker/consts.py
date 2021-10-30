@@ -4,6 +4,7 @@ VERSION = '3.4.0'
 PROG_NAME = 'docworker'
 LOGGER_NAME = 'docworker'
 CURRENT_METAMODEL = 4
+NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
 
 class DocumentState:
