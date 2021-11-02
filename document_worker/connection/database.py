@@ -7,7 +7,7 @@ import psycopg2.extras  # type: ignore
 import tenacity
 
 from document_worker.config import DatabaseConfig
-from document_worker.consts import DocumentState
+from document_worker.consts import DocumentState, NULL_UUID
 from document_worker.context import Context
 
 from typing import List, Optional
@@ -29,6 +29,7 @@ class DBJob:
     document_context: dict
     created_by: Optional[str]
     created_at: datetime.datetime
+    app_uuid: str
 
 
 @dataclasses.dataclass
@@ -49,6 +50,7 @@ class DBDocument:
     retrieved_at: Optional[datetime.datetime]
     finished_at: Optional[datetime.datetime]
     created_at: datetime.datetime
+    app_uuid: str
 
 
 @dataclasses.dataclass
@@ -66,6 +68,7 @@ class DBTemplate:
     recommended_package_id: str
     formats: dict
     created_at: datetime.datetime
+    app_uuid: str
 
 
 @dataclasses.dataclass
@@ -74,6 +77,7 @@ class DBTemplateFile:
     uuid: str
     file_name: str
     content: str
+    app_uuid: str
 
 
 @dataclasses.dataclass
@@ -82,6 +86,7 @@ class DBTemplateAsset:
     uuid: str
     file_name: str
     content_type: str
+    app_uuid: str
 
 
 def wrap_json_data(data: dict):
@@ -93,14 +98,14 @@ class Database:
     LISTEN = 'LISTEN document_queue_channel;'
     SELECT_JOB = 'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
     DELETE_JOB = 'DELETE FROM document_queue WHERE id = %s;'
-    SELECT_DOCUMENT = 'SELECT * FROM document WHERE uuid = %s LIMIT 1;'
+    SELECT_DOCUMENT = 'SELECT * FROM document WHERE uuid = %s AND app_uuid = %s LIMIT 1;'
     UPDATE_DOCUMENT_STATE = 'UPDATE document SET state = %s, worker_log = %s WHERE uuid = %s;'
     UPDATE_DOCUMENT_RETRIEVED = 'UPDATE document SET retrieved_at = %s, state = %s WHERE uuid = %s;'
     UPDATE_DOCUMENT_FINISHED = 'UPDATE document SET finished_at = %s, state = %s, ' \
                                'file_name = %s, content_type = %s, worker_log = %s WHERE uuid = %s;'
-    SELECT_TEMPLATE = 'SELECT * FROM template WHERE id = %s LIMIT 1;'
-    SELECT_TEMPLATE_FILES = 'SELECT * FROM template_file WHERE template_id = %s;'
-    SELECT_TEMPLATE_ASSETS = 'SELECT * FROM template_asset WHERE template_id = %s;'
+    SELECT_TEMPLATE = 'SELECT * FROM template WHERE id = %s AND app_uuid = %s LIMIT 1;'
+    SELECT_TEMPLATE_FILES = 'SELECT * FROM template_file WHERE template_id = %s AND app_uuid = %s;'
+    SELECT_TEMPLATE_ASSETS = 'SELECT * FROM template_asset WHERE template_id = %s AND app_uuid = %s;'
 
     def __init__(self, cfg: DatabaseConfig):
         self.cfg = cfg
@@ -122,71 +127,75 @@ class Database:
         self.conn_queue.connect()
 
     @classmethod
-    def get_as_job(cls, result) -> DBJob:
-        _id, document_uuid, document_context, created_by, created_at = result
+    def get_as_job(cls, result: dict) -> DBJob:
         return DBJob(
-            id=_id,
-            document_uuid=document_uuid,
-            document_context=document_context,
-            created_by=created_by,
-            created_at=created_at,
+            id=result['id'],
+            document_uuid=result['document_uuid'],
+            document_context=result['document_context'],
+            created_by=result['created_by'],
+            created_at=result['created_at'],
+            app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
     @classmethod
     def get_as_document(cls, result) -> DBDocument:
         return DBDocument(
-            uuid=result[0],
-            name=result[1],
-            state=result[2],
-            durability=result[3],
-            questionnaire_uuid=result[4],
-            questionnaire_event_uuid=result[5],
-            questionnaire_replies_hash=result[6],
-            template_id=result[7],
-            format_uuid=result[8],
-            creator_uuid=result[9],
-            retrieved_at=result[10],
-            finished_at=result[11],
-            created_at=result[12],
-            file_name=result[13],
-            content_type=result[14],
-            worker_log=result[15],
+            uuid=result['uuid'],
+            name=result['name'],
+            state=result['state'],
+            durability=result['durability'],
+            questionnaire_uuid=result['questionnaire_uuid'],
+            questionnaire_event_uuid=result['questionnaire_event_uuid'],
+            questionnaire_replies_hash=result['questionnaire_replies_hash'],
+            template_id=result['template_id'],
+            format_uuid=result['format_uuid'],
+            creator_uuid=result['creator_uuid'],
+            retrieved_at=result['retrieved_at'],
+            finished_at=result['finished_at'],
+            created_at=result['created_at'],
+            file_name=result['file_name'],
+            content_type=result['content_type'],
+            worker_log=result['worker_log'],
+            app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
     @classmethod
-    def get_as_template(cls, result) -> DBTemplate:
+    def get_as_template(cls, result: dict) -> DBTemplate:
         return DBTemplate(
-            id=result[0],
-            name=result[1],
-            organization_id=result[2],
-            template_id=result[3],
-            version=result[4],
-            metamodel_version=result[5],
-            description=result[6],
-            readme=result[7],
-            license=result[8],
-            allowed_packages=result[9],
-            recommended_package_id=result[10],
-            formats=result[11],
-            created_at=result[12],
+            id=result['id'],
+            name=result['name'],
+            organization_id=result['organization_id'],
+            template_id=result['template_id'],
+            version=result['version'],
+            metamodel_version=result['metamodel_version'],
+            description=result['description'],
+            readme=result['readme'],
+            license=result['license'],
+            allowed_packages=result['allowed_packages'],
+            recommended_package_id=result['recommended_package_id'],
+            formats=result['formats'],
+            created_at=result['created_at'],
+            app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
     @classmethod
-    def get_as_template_file(cls, result) -> DBTemplateFile:
+    def get_as_template_file(cls, result: dict) -> DBTemplateFile:
         return DBTemplateFile(
-            template_id=result[0],
-            uuid=result[1],
-            file_name=result[2],
-            content=result[3],
+            template_id=result['template_id'],
+            uuid=result['uuid'],
+            file_name=result['file_name'],
+            content=result['content'],
+            app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
     @classmethod
-    def get_as_template_asset(cls, result) -> DBTemplateAsset:
+    def get_as_template_asset(cls, result: dict) -> DBTemplateAsset:
         return DBTemplateAsset(
-            template_id=result[0],
-            uuid=result[1],
-            file_name=result[2],
-            content_type=result[3],
+            template_id=result['template_id'],
+            uuid=result['uuid'],
+            file_name=result['file_name'],
+            content_type=result['content_type'],
+            app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
     @tenacity.retry(
@@ -196,11 +205,11 @@ class Database:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def fetch_document(self, document_uuid: str) -> Optional[DBDocument]:
-        with self.conn_query.new_cursor() as cursor:
+    def fetch_document(self, document_uuid: str, app_uuid: str) -> Optional[DBDocument]:
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
             cursor.execute(
                 query=self.SELECT_DOCUMENT,
-                vars=(document_uuid,),
+                vars=(document_uuid, app_uuid),
             )
             result = cursor.fetchall()
             if len(result) != 1:
@@ -214,11 +223,11 @@ class Database:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def fetch_template(self, template_id: str) -> Optional[DBTemplate]:
-        with self.conn_query.new_cursor() as cursor:
+    def fetch_template(self, template_id: str, app_uuid: str) -> Optional[DBTemplate]:
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
             cursor.execute(
                 query=self.SELECT_TEMPLATE,
-                vars=(template_id,),
+                vars=(template_id, app_uuid),
             )
             result = cursor.fetchall()
             if len(result) != 1:
@@ -232,11 +241,11 @@ class Database:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def fetch_template_files(self, template_id: str) -> List[DBTemplateFile]:
-        with self.conn_query.new_cursor() as cursor:
+    def fetch_template_files(self, template_id: str, app_uuid: str) -> List[DBTemplateFile]:
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
             cursor.execute(
                 query=self.SELECT_TEMPLATE_FILES,
-                vars=(template_id,),
+                vars=(template_id, app_uuid),
             )
             return [self.get_as_template_file(x) for x in cursor.fetchall()]
 
@@ -247,11 +256,11 @@ class Database:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def fetch_template_assets(self, template_id: str) -> List[DBTemplateAsset]:
-        with self.conn_query.new_cursor() as cursor:
+    def fetch_template_assets(self, template_id: str, app_uuid: str) -> List[DBTemplateAsset]:
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
             cursor.execute(
                 query=self.SELECT_TEMPLATE_ASSETS,
-                vars=(template_id,),
+                vars=(template_id, app_uuid),
             )
             return [self.get_as_template_asset(x) for x in cursor.fetchall()]
 
@@ -355,8 +364,10 @@ class PostgresConnection:
         self.connect()
         return self._connection
 
-    def new_cursor(self):
-        return self.connection.cursor()
+    def new_cursor(self, use_dict: bool = False):
+        return self.connection.cursor(
+            cursor_factory=psycopg2.extras.DictCursor if use_dict else None,
+        )
 
     def reset(self):
         self.close()
