@@ -34,6 +34,7 @@ setup(
         'PyYAML',
         'rdflib',
         'rdflib-jsonld',
+        'requests',
         'python-slugify',
         'python-dateutil',
         'tenacity',

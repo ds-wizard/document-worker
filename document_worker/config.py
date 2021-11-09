@@ -1,6 +1,6 @@
 import shlex
 import yaml
-from typing import List
+from typing import List, Optional
 
 from document_worker.consts import DocumentNamingStrategy
 
@@ -82,16 +82,67 @@ class CommandConfig:
                f'- timeout = {self.timeout} ({type(self.timeout)})\n'
 
 
+class TemplateRequestsConfig:
+
+    def __init__(self, enabled: bool, limit: int, timeout: int):
+        self.enabled = enabled
+        self.limit = limit
+        self.timeout = timeout
+
+    @staticmethod
+    def load(data: dict):
+        return TemplateRequestsConfig(
+            enabled=data.get('enabled', False),
+            limit=data.get('limit', 100),
+            timeout=data.get('timeout', 1),
+        )
+
+
+class TemplateConfig:
+
+    def __init__(self, ids: List[str], requests: TemplateRequestsConfig,
+                 secrets: dict[str, str]):
+        self.ids = ids
+        self.requests = requests
+        self.secrets = secrets
+
+    @staticmethod
+    def load(data: dict):
+        print(data)
+        return TemplateConfig(
+            ids=data.get('ids', []),
+            requests=TemplateRequestsConfig.load(
+                data.get('requests', {}),
+            ),
+            secrets=data.get('secrets', {}),
+        )
+
+
+class TemplatesConfig:
+
+    def __init__(self, templates: List[TemplateConfig]):
+        self.templates = templates
+
+    def get_config(self, template_id: str) -> Optional[TemplateConfig]:
+        for template in self.templates:
+            if any((template_id.startswith(prefix)
+                    for prefix in template.ids)):
+                return template
+        return None
+
+
 class DocumentWorkerConfig:
 
     def __init__(self, db: DatabaseConfig, s3: S3Config, log: LoggingConfig,
-                 doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig):
+                 doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig,
+                 templates: TemplatesConfig):
         self.db = db
         self.s3 = s3
         self.log = log
         self.doc = doc
         self.pandoc = pandoc
         self.wkhtmltopdf = wkhtmltopdf
+        self.templates = templates
 
     def __str__(self):
         return f'DocumentWorkerConfig\n' \
@@ -115,6 +166,7 @@ class DocumentWorkerConfigParser:
     EXTERNAL_SECTION = 'externals'
     PANDOC_SUBSECTION = 'pandoc'
     WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
+    TEMPLATES_SECTION = 'templates'
 
     DEFAULTS = {
         DB_SECTION: {
@@ -150,6 +202,7 @@ class DocumentWorkerConfigParser:
                 'timeout': None,
             },
         },
+        TEMPLATES_SECTION: [],
     }
 
     REQUIRED = []  # type: list[str]
@@ -248,6 +301,14 @@ class DocumentWorkerConfigParser:
         return self._command_config(self.EXTERNAL_SECTION, self.WKHTMLTOPDF_SUBSECTION)
 
     @property
+    def templates(self) -> TemplatesConfig:
+        templates_data = self.get_or_default(self.TEMPLATES_SECTION)
+        templates = [TemplateConfig.load(data) for data in templates_data]
+        return TemplatesConfig(
+            templates=templates,
+        )
+
+    @property
     def config(self) -> DocumentWorkerConfig:
         return DocumentWorkerConfig(
             db=self.db,
@@ -256,4 +317,5 @@ class DocumentWorkerConfigParser:
             doc=self.documents,
             pandoc=self.pandoc,
             wkhtmltopdf=self.wkhtmltopdf,
+            templates=self.templates,
         )

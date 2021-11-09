@@ -89,8 +89,19 @@ class Jinja2Step(Step):
     def _add_j2_enhancements(self):
         from document_worker.templates.filters import filters
         from document_worker.templates.tests import tests
+        from document_worker.model.http import RequestsWrapper
         self.j2_env.filters.update(filters)
         self.j2_env.tests.update(tests)
+        template_cfg = Context.get().app.cfg.templates.get_config(
+            self.template.template_id,
+        )
+        if template_cfg is not None:
+            global_vars = {'secrets': template_cfg.secrets}
+            if template_cfg.requests.enabled:
+                global_vars['requests'] = RequestsWrapper(
+                    template_cfg=template_cfg,
+                )
+            self.j2_env.globals.update(global_vars)
 
     def execute_first(self, context: dict) -> DocumentFile:
         def asset_fetcher(file_name):
