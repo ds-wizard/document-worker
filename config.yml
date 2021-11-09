@@ -15,6 +15,16 @@ logging:
   level: INFO
   globalLevel: WARNING
 
+templates:
+  - ids:
+      - "dsw:"
+    requests:
+      enabled:
+      limit:
+      timeout:
+    secrets:
+      API_TOKEN:
+
 #documents:
 #  naming:
 #    strategy: sanitize # uuid|slugify|sanitize

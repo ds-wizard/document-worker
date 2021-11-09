@@ -53,7 +53,7 @@ class Template:
     def __init__(self, template_dir: pathlib.Path, db_template: TemplateComposite):
         self.template_dir = template_dir
         self.db_template = db_template
-        self.template_id = self.db_template.template.template_id
+        self.template_id = self.db_template.template.id
         self.formats = dict()  # type: Dict[str, Format]
         self.prepare_template_files()
         self.prepare_template_assets()

@@ -29,7 +29,8 @@ def validate_config(ctx, param, value: IO):
 @click.command(name='docworker')
 @click.version_option(version=VERSION)
 @click.argument('config', envvar='DOCWORKER_CONFIG',
-                type=click.File('r'), callback=validate_config)
+                type=click.File('r', encoding='utf-8'),
+                callback=validate_config)
 @click.argument('workdir', envvar='DOCWORKER_WORKDIR',
                 type=click.Path(dir_okay=True, exists=True))
 def main(config: DocumentWorkerConfig, workdir: str):
