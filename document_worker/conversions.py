@@ -117,6 +117,7 @@ class RdfLibConvert:
             format=self.FORMATS.get(source_format)
         )
         result = g.serialize(
-            format=self.FORMATS.get(target_format)
+            format=self.FORMATS.get(target_format),
+            encoding=DEFAULT_ENCODING,
         )
         return result
