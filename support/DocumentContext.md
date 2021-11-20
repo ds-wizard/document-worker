@@ -318,8 +318,8 @@ As for the [`Question`](#question) class, `Reference` is also a superclass and y
 * `rq_headers` (`dict[str,str]`)
 * `rq_body` (`str`)
 * `rs_list_field` (`str`)
-* `rs_id_field` (`str`)
-* `rs_name_field` (`str`)
+* `rs_item_id` (`str`)
+* `rs_item_template` (`str`)
 * `annotations` (`dict[str,str]`)
 
 Operations:

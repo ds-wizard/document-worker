@@ -40,7 +40,7 @@ class Tag:
 class Integration:
 
     def __init__(self, uuid, name, logo, id, item_url, props, rq_body, rq_headers,
-                 rq_method, rq_url, rs_id_field, rs_list_field, rs_name_field,
+                 rq_method, rq_url, rs_list_field, rs_item_id, rs_item_template,
                  annotations):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
@@ -52,9 +52,9 @@ class Integration:
         self.rq_method = rq_method  # type: str
         self.rq_url = rq_url  # type: str
         self.rq_headers = rq_headers  # type: dict[str, str]
-        self.rs_id_field = rs_id_field  # type: str
         self.rs_list_field = rs_list_field  # type: str
-        self.rs_name_field = rs_name_field  # type: str
+        self.rs_item_id = rs_item_id  # type: str
+        self.rs_item_template = rs_item_template  # type: str
         self.annotations = annotations  # type: dict[str, str]
 
     @property
@@ -82,9 +82,9 @@ class Integration:
             rq_headers=data['requestHeaders'],
             rq_method=data['requestMethod'],
             rq_url=data['requestUrl'],
-            rs_id_field=data['responseIdField'],
             rs_list_field=data['responseListField'],
-            rs_name_field=data['responseNameField'],
+            rs_item_id=data['responseItemId'],
+            rs_item_template=data['responseItemTemplate'],
             annotations=data['annotations'],
         )
 
