@@ -5,7 +5,7 @@ colorama==0.4.4
 idna==3.3
 isodate==0.6.0
 Jinja2==3.0.3
-Markdown==3.3.4
+Markdown==3.3.6
 MarkupSafe==2.0.1
 mdx-breakless-lists==1.0.1
 minio==7.1.1
