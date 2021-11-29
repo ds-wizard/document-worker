@@ -64,6 +64,16 @@ class DocumentsConfig:
                f'- naming_strategy = {self.naming_strategy}\n'
 
 
+class ExperimentalConfig:
+
+    def __init__(self, more_apps_enabled: bool):
+        self.more_apps_enabled = more_apps_enabled
+
+    def __str__(self):
+        return f'ExperimentalConfig\n' \
+               f'- more_apps_enabled = {self.more_apps_enabled}\n'
+
+
 class CommandConfig:
 
     def __init__(self, executable: str, args: str, timeout: float):
@@ -135,7 +145,7 @@ class DocumentWorkerConfig:
 
     def __init__(self, db: DatabaseConfig, s3: S3Config, log: LoggingConfig,
                  doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig,
-                 templates: TemplatesConfig):
+                 templates: TemplatesConfig, experimental: ExperimentalConfig):
         self.db = db
         self.s3 = s3
         self.log = log
@@ -143,6 +153,7 @@ class DocumentWorkerConfig:
         self.pandoc = pandoc
         self.wkhtmltopdf = wkhtmltopdf
         self.templates = templates
+        self.experimental = experimental
 
     def __str__(self):
         return f'DocumentWorkerConfig\n' \
@@ -151,6 +162,7 @@ class DocumentWorkerConfig:
                f'{self.s3}' \
                f'{self.log}' \
                f'{self.doc}' \
+               f'{self.experimental}' \
                f'Pandoc: {self.pandoc}' \
                f'WkHtmlToPdf: {self.wkhtmltopdf}' \
                f'====================\n'
@@ -167,6 +179,7 @@ class DocumentWorkerConfigParser:
     PANDOC_SUBSECTION = 'pandoc'
     WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
     TEMPLATES_SECTION = 'templates'
+    EXPERIMENTAL_SECTION = 'experimental'
 
     DEFAULTS = {
         DB_SECTION: {
@@ -203,6 +216,9 @@ class DocumentWorkerConfigParser:
             },
         },
         TEMPLATES_SECTION: [],
+        EXPERIMENTAL_SECTION: {
+            'moreAppsEnabled': False,
+        },
     }
 
     REQUIRED = []  # type: list[str]
@@ -309,6 +325,12 @@ class DocumentWorkerConfigParser:
         )
 
     @property
+    def experimental(self) -> ExperimentalConfig:
+        return ExperimentalConfig(
+            more_apps_enabled=self.get_or_default(self.EXPERIMENTAL_SECTION, 'moreAppsEnabled'),
+        )
+
+    @property
     def config(self) -> DocumentWorkerConfig:
         return DocumentWorkerConfig(
             db=self.db,
@@ -318,4 +340,5 @@ class DocumentWorkerConfigParser:
             pandoc=self.pandoc,
             wkhtmltopdf=self.wkhtmltopdf,
             templates=self.templates,
+            experimental=self.experimental,
         )
