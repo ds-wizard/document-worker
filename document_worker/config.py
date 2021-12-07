@@ -1,6 +1,6 @@
 import shlex
 import yaml
-from typing import List
+from typing import List, Optional
 
 from document_worker.consts import DocumentNamingStrategy
 
@@ -64,6 +64,16 @@ class DocumentsConfig:
                f'- naming_strategy = {self.naming_strategy}\n'
 
 
+class ExperimentalConfig:
+
+    def __init__(self, more_apps_enabled: bool):
+        self.more_apps_enabled = more_apps_enabled
+
+    def __str__(self):
+        return f'ExperimentalConfig\n' \
+               f'- more_apps_enabled = {self.more_apps_enabled}\n'
+
+
 class CommandConfig:
 
     def __init__(self, executable: str, args: str, timeout: float):
@@ -82,16 +92,68 @@ class CommandConfig:
                f'- timeout = {self.timeout} ({type(self.timeout)})\n'
 
 
+class TemplateRequestsConfig:
+
+    def __init__(self, enabled: bool, limit: int, timeout: int):
+        self.enabled = enabled
+        self.limit = limit
+        self.timeout = timeout
+
+    @staticmethod
+    def load(data: dict):
+        return TemplateRequestsConfig(
+            enabled=data.get('enabled', False),
+            limit=data.get('limit', 100),
+            timeout=data.get('timeout', 1),
+        )
+
+
+class TemplateConfig:
+
+    def __init__(self, ids: List[str], requests: TemplateRequestsConfig,
+                 secrets: dict[str, str]):
+        self.ids = ids
+        self.requests = requests
+        self.secrets = secrets
+
+    @staticmethod
+    def load(data: dict):
+        print(data)
+        return TemplateConfig(
+            ids=data.get('ids', []),
+            requests=TemplateRequestsConfig.load(
+                data.get('requests', {}),
+            ),
+            secrets=data.get('secrets', {}),
+        )
+
+
+class TemplatesConfig:
+
+    def __init__(self, templates: List[TemplateConfig]):
+        self.templates = templates
+
+    def get_config(self, template_id: str) -> Optional[TemplateConfig]:
+        for template in self.templates:
+            if any((template_id.startswith(prefix)
+                    for prefix in template.ids)):
+                return template
+        return None
+
+
 class DocumentWorkerConfig:
 
     def __init__(self, db: DatabaseConfig, s3: S3Config, log: LoggingConfig,
-                 doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig):
+                 doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig,
+                 templates: TemplatesConfig, experimental: ExperimentalConfig):
         self.db = db
         self.s3 = s3
         self.log = log
         self.doc = doc
         self.pandoc = pandoc
         self.wkhtmltopdf = wkhtmltopdf
+        self.templates = templates
+        self.experimental = experimental
 
     def __str__(self):
         return f'DocumentWorkerConfig\n' \
@@ -100,6 +162,7 @@ class DocumentWorkerConfig:
                f'{self.s3}' \
                f'{self.log}' \
                f'{self.doc}' \
+               f'{self.experimental}' \
                f'Pandoc: {self.pandoc}' \
                f'WkHtmlToPdf: {self.wkhtmltopdf}' \
                f'====================\n'
@@ -115,6 +178,8 @@ class DocumentWorkerConfigParser:
     EXTERNAL_SECTION = 'externals'
     PANDOC_SUBSECTION = 'pandoc'
     WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
+    TEMPLATES_SECTION = 'templates'
+    EXPERIMENTAL_SECTION = 'experimental'
 
     DEFAULTS = {
         DB_SECTION: {
@@ -149,6 +214,10 @@ class DocumentWorkerConfigParser:
                 'args': '',
                 'timeout': None,
             },
+        },
+        TEMPLATES_SECTION: [],
+        EXPERIMENTAL_SECTION: {
+            'moreAppsEnabled': False,
         },
     }
 
@@ -248,6 +317,20 @@ class DocumentWorkerConfigParser:
         return self._command_config(self.EXTERNAL_SECTION, self.WKHTMLTOPDF_SUBSECTION)
 
     @property
+    def templates(self) -> TemplatesConfig:
+        templates_data = self.get_or_default(self.TEMPLATES_SECTION)
+        templates = [TemplateConfig.load(data) for data in templates_data]
+        return TemplatesConfig(
+            templates=templates,
+        )
+
+    @property
+    def experimental(self) -> ExperimentalConfig:
+        return ExperimentalConfig(
+            more_apps_enabled=self.get_or_default(self.EXPERIMENTAL_SECTION, 'moreAppsEnabled'),
+        )
+
+    @property
     def config(self) -> DocumentWorkerConfig:
         return DocumentWorkerConfig(
             db=self.db,
@@ -256,4 +339,6 @@ class DocumentWorkerConfigParser:
             doc=self.documents,
             pandoc=self.pandoc,
             wkhtmltopdf=self.wkhtmltopdf,
+            templates=self.templates,
+            experimental=self.experimental,
         )

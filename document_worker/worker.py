@@ -117,6 +117,7 @@ class Job:
         db_assets = self.ctx.app.db.fetch_template_assets(**query_args)
         # prepare template
         self.template = prepare_template(
+            app_uuid=self.app_uuid,
             template=db_template,
             files=db_files,
             assets=db_assets,
@@ -139,6 +140,7 @@ class Job:
         self.ctx.app.s3.ensure_bucket()
         self.log.info(f'Storing document to S3 bucket {s3_id}')
         self.ctx.app.s3.store_document(
+            app_uuid=self.app_uuid,
             file_name=self.doc_uuid,
             content_type=self.final_file.content_type,
             data=self.final_file.content,

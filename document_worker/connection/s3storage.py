@@ -65,11 +65,15 @@ class S3Storage:
         before=tenacity.before_log(Context.logger, logging.DEBUG),
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
-    def store_document(self, file_name: str, content_type: str, data: bytes):
+    def store_document(self, app_uuid: str, file_name: str,
+                       content_type: str, data: bytes):
+        object_name = f'{DOCUMENTS_DIR}/{file_name}'
+        if Context.get().app.cfg.experimental.more_apps_enabled:
+            object_name = f'{app_uuid}/{object_name}'
         with temp_binary_file(data=data) as file:
             self.client.put_object(
                 bucket_name=self.cfg.bucket,
-                object_name=f'{DOCUMENTS_DIR}/{file_name}',
+                object_name=object_name,
                 data=file,
                 length=len(data),
                 content_type=content_type,

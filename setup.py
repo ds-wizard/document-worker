@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='3.5.0',
+    version='3.6.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -34,6 +34,7 @@ setup(
         'PyYAML',
         'rdflib',
         'rdflib-jsonld',
+        'requests',
         'python-slugify',
         'python-dateutil',
         'tenacity',

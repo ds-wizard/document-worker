@@ -50,10 +50,12 @@ class TemplateComposite:
 
 class Template:
 
-    def __init__(self, template_dir: pathlib.Path, db_template: TemplateComposite):
+    def __init__(self, app_uuid: str, template_dir: pathlib.Path,
+                 db_template: TemplateComposite):
+        self.app_uuid = app_uuid
         self.template_dir = template_dir
         self.db_template = db_template
-        self.template_id = self.db_template.template.template_id
+        self.template_id = self.db_template.template.id
         self.formats = dict()  # type: Dict[str, Format]
         self.prepare_template_files()
         self.prepare_template_assets()
@@ -94,8 +96,11 @@ class Template:
 
     def prepare_template_assets(self):
         Context.logger.info(f'Storing assets of template {self.template_id} locally')
+        path_prefix = f'templates/{self.db_template.template.id}'
+        if Context.get().app.cfg.experimental.more_apps_enabled:
+            path_prefix = f'{self.app_uuid}/{path_prefix}'
         for asset in self.db_template.assets:
-            remote_path = f'templates/{self.db_template.template.id}/{asset.uuid}'
+            remote_path = f'{path_prefix}/{asset.uuid}'
             local_path = self.template_dir / asset.file_name
             result = Context.get().app.s3.download_file(remote_path, local_path)
             if not result:
@@ -122,7 +127,7 @@ class Template:
 
 
 def prepare_template(template: DBTemplate, files: List[DBTemplateFile],
-                     assets: List[DBTemplateAsset]) -> Template:
+                     assets: List[DBTemplateAsset], app_uuid: str) -> Template:
     workdir = Context.get().app.workdir
     template_id = template.id
     template_dir = workdir / template_id.replace(':', '_')
@@ -131,6 +136,7 @@ def prepare_template(template: DBTemplate, files: List[DBTemplateFile],
     template_dir.mkdir()
 
     return Template(
+        app_uuid=app_uuid,
         template_dir=template_dir,
         db_template=TemplateComposite(
             db_template=template,
