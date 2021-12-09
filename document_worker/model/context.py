@@ -155,7 +155,8 @@ class MetricMeasure:
         self.metric = None  # type: Optional[Metric]
 
     def _resolve_links(self, ctx):
-        self.metric = ctx.e.metrics[self.metric_uuid]
+        if self.metric_uuid in ctx.e.metrics.keys():
+            self.metric = ctx.e.metrics[self.metric_uuid]
 
     @staticmethod
     def load(data: dict, **options):
@@ -277,9 +278,10 @@ class Reply:
         self.question = None  # type: Optional[Question]
 
     def _resolve_links_parent(self, ctx):
-        self.question = ctx.e.questions[self.fragments[-1]]
-        self.question.replies[self.path] = self
-
+        question_uuid = self.fragments[-1]
+        if question_uuid in ctx.e.questions.keys():
+            self.question = ctx.e.questions[question_uuid]
+            self.question.replies[self.path] = self
 
 class AnswerReply(Reply):
 
@@ -387,7 +389,9 @@ class MultiChoiceReply(Reply):
 
     def _resolve_links(self, ctx):
         super()._resolve_links_parent(ctx)
-        self.choices = [ctx.e.choices[key] for key in self.choice_uuids]
+        self.choices = [ctx.e.choices[key]
+                        for key in self.choice_uuids
+                        if key in ctx.e.choices.keys()]
 
     @staticmethod
     def load(path: str, data: dict, **options):
@@ -464,7 +468,9 @@ class Answer:
         return other.uuid == self.uuid
 
     def _resolve_links(self, ctx):
-        self.followups = [ctx.e.questions[key] for key in self.followup_uuids]
+        self.followups = [ctx.e.questions[key]
+                          for key in self.followup_uuids
+                          if key in ctx.e.questions.keys()]
         for followup in self.followups:
             followup.parent = self
             followup._resolve_links(ctx)
@@ -626,7 +632,9 @@ class OptionsQuestion(Question):
 
     def _resolve_links(self, ctx):
         super()._resolve_links_parent(ctx)
-        self.answers = [ctx.e.answers[key] for key in self.answer_uuids]
+        self.answers = [ctx.e.answers[key]
+                        for key in self.answer_uuids
+                        if key in ctx.e.answers.keys()]
         for answer in self.answers:
             answer.parent = self
             answer._resolve_links(ctx)
@@ -659,7 +667,9 @@ class MultiChoiceQuestion(Question):
 
     def _resolve_links(self, ctx):
         super()._resolve_links_parent(ctx)
-        self.choices = [ctx.e.choices[key] for key in self.choice_uuids]
+        self.choices = [ctx.e.choices[key]
+                        for key in self.choice_uuids
+                        if key in ctx.e.choices.keys()]
         for choice in self.choices:
             choice.question = self
 
@@ -691,7 +701,9 @@ class ListQuestion(Question):
 
     def _resolve_links(self, ctx):
         super()._resolve_links_parent(ctx)
-        self.followups = [ctx.e.questions[key] for key in self.followup_uuids]
+        self.followups = [ctx.e.questions[key]
+                          for key in self.followup_uuids
+                          if key in ctx.e.questions.keys()]
         for followup in self.followups:
             followup.parent = self
             followup._resolve_links(ctx)
@@ -764,7 +776,9 @@ class Chapter:
         return other.uuid == self.uuid
 
     def _resolve_links(self, ctx):
-        self.questions = [ctx.e.questions[key] for key in self.question_uuids]
+        self.questions = [ctx.e.questions[key]
+                          for key in self.question_uuids
+                          if key in ctx.e.questions.keys()]
         for question in self.questions:
             question.parent = self
             question._resolve_links(ctx)
@@ -882,11 +896,21 @@ class KnowledgeModel:
         return self.entities
 
     def _resolve_links(self, ctx):
-        self.chapters = [ctx.e.chapters[key] for key in self.chapter_uuids]
-        self.tags = [ctx.e.tags[key] for key in self.tag_uuids]
-        self.metrics = [ctx.e.metrics[key] for key in self.metric_uuids]
-        self.phases = [ctx.e.phases[key] for key in self.phase_uuids]
-        self.integrations = [ctx.e.integrations[key] for key in self.integration_uuids]
+        self.chapters = [ctx.e.chapters[key]
+                         for key in self.chapter_uuids
+                         if key in ctx.e.chapters.keys()]
+        self.tags = [ctx.e.tags[key]
+                     for key in self.tag_uuids
+                     if key in ctx.e.tags.keys()]
+        self.metrics = [ctx.e.metrics[key]
+                        for key in self.metric_uuids
+                        if key in ctx.e.metrics.keys()]
+        self.phases = [ctx.e.phases[key]
+                       for key in self.phase_uuids
+                       if key in ctx.e.metrics.keys()]
+        self.integrations = [ctx.e.integrations[key]
+                             for key in self.integration_uuids
+                             if key in ctx.e.integrations.keys()]
         for index, phase in enumerate(self.phases, start=1):
             phase.order = index
         for chapter in self.chapters:
@@ -1118,7 +1142,8 @@ class ReportMetric:
         self.metric = None  # type: Optional[Metric]
 
     def _resolve_links(self, ctx):
-        self.metric = ctx.e.metrics[self.metric_uuid]
+        if self.metric_uuid in ctx.e.metrics.keys():
+            self.metric = ctx.e.metrics[self.metric_uuid]
 
     @staticmethod
     def load(data: dict, **options):
@@ -1139,7 +1164,7 @@ class ReportItem:
     def _resolve_links(self, ctx):
         for m in self.metrics:
             m._resolve_links(ctx)
-        if self.chapter_uuid is not None:
+        if self.chapter_uuid is not None and self.chapter_uuid in ctx.e.chapters.keys():
             self.chapter = ctx.e.chapters[self.chapter_uuid]
             self.chapter.reports.append(self)
 
@@ -1269,8 +1294,9 @@ class DocumentContext:
         return self.questionnaire.replies
 
     def _resolve_links(self):
-        if self.questionnaire.phase_uuid is not None:
-            self.current_phase = self.km.entities.phases[self.questionnaire.phase_uuid]
+        phase_uuid = self.questionnaire.phase_uuid
+        if phase_uuid is not None and phase_uuid in self.e.phases.keys():
+            self.current_phase = self.e.phases[phase_uuid]
         self.questionnaire.phase = self.current_phase
         self.km._resolve_links(self)
         self.report._resolve_links(self)
