@@ -283,6 +283,7 @@ class Reply:
             self.question = ctx.e.questions[question_uuid]
             self.question.replies[self.path] = self
 
+
 class AnswerReply(Reply):
 
     def __init__(self, path, created_at, created_by, answer_uuid):
