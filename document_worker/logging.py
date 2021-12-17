@@ -47,22 +47,22 @@ class _DocWorkerLoggerWrapper(logging.Logger):
         else:
             return super().__getattribute__(name)
 
-    def _xlog(self, level: int, message: str, **kwargs):
+    def _xlog(self, level: int, message: object, **kwargs):
         self._logger.log(level=level, msg=message, extra=self._extra, **kwargs)
 
     def log(self, *args, **kwargs):
         self._logger.log(*args, extra=self._extra, **kwargs)
 
-    def debug(self, msg: str, *args, **kwargs):
+    def debug(self, msg: object, *args, **kwargs):
         self._xlog(level=logging.DEBUG, message=msg, **kwargs)
 
-    def info(self, msg: str, *args, **kwargs):
+    def info(self, msg: object, *args, **kwargs):
         self._xlog(level=logging.INFO, message=msg, **kwargs)
 
-    def warning(self, msg: str, *args, **kwargs):
+    def warning(self, msg: object, *args, **kwargs):
         self._xlog(level=logging.WARNING, message=msg, **kwargs)
 
-    def error(self, msg: str, *args, **kwargs):
+    def error(self, msg: object, *args, **kwargs):
         self._xlog(level=logging.ERROR, message=msg, **kwargs)
 
     def set_level(self, level: str):
