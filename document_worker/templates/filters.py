@@ -3,14 +3,38 @@ import dateutil.parser as dp
 import jinja2  # type: ignore
 import markdown
 
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 from document_worker.model import DocumentContext
 from document_worker.logging import LOGGER
 
 
+class _JinjaEnv:
+
+    def __init__(self):
+        self._env = None  # type: Optional[jinja2.Environment]
+
+    @property
+    def env(self) -> jinja2.Environment:
+        if self._env is None:
+            from document_worker.templates.tests import tests
+            self._env = jinja2.Environment(
+                loader=_base_jinja_loader,
+                extensions=['jinja2.ext.do'],
+            )
+            self._env.filters.update(filters)
+            self._env.tests.update(tests)
+        return self._env
+
+    def get_template(self, template_str: str) -> jinja2.Template:
+        return self.env.from_string(source=template_str)
+
+
 _alphabet = [chr(x) for x in range(ord('a'), ord('z') + 1)]
 _alphabet_size = len(_alphabet)
+_base_jinja_loader = jinja2.BaseLoader()
+_j2_env = _JinjaEnv()
+_empty_dict = dict()  # type: dict[str, Any]
 _romans = [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, 'XC'),
            (50, 'L'), (40, 'XL'), (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]
 
@@ -116,6 +140,22 @@ def reply_path(uuids: list) -> str:
     return '.'.join(map(str, uuids))
 
 
+def jinja2_render(template_str: str, vars=None, fail_safe=False, **kwargs):
+    if vars is None:
+        vars = _empty_dict
+    LOGGER.debug('Jinja2-in-Jinja2 rendering requested')
+    try:
+        j2_template = _j2_env.get_template(template_str)
+        LOGGER.debug('Jinja2-in-Jinja2 template prepared')
+        result = j2_template.render(**vars, **kwargs)
+        LOGGER.debug('Jinja2-in-Jinja2 result finished')
+        return result
+    except Exception as e:
+        if fail_safe:
+            return ''
+        raise e  # re-raise
+
+
 def to_context_obj(ctx, **options) -> DocumentContext:
     LOGGER.debug('DocumentContext object requested')
     result = DocumentContext(ctx, **options)
@@ -141,4 +181,5 @@ filters = {
     'find_reply': find_reply,
     'reply_path': reply_path,
     'to_context_obj': to_context_obj,
+    'jinja2': jinja2_render,
 }
