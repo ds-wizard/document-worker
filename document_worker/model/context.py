@@ -1044,6 +1044,7 @@ class Questionnaire:
         self.created_by = created_by  # type: User
         self.phase_uuid = phase_uuid  # type: Optional[str]
         self.phase = None  # type: Optional[Phase]
+        self.project_tags = list()  # type: list[str]
         self.replies = RepliesContainer(dict())  # type: RepliesContainer
 
     def _resolve_links(self, ctx):
@@ -1068,6 +1069,7 @@ class Questionnaire:
         )
         qtn.version = version
         qtn.versions = versions
+        qtn.project_tags = data.get('questionnaireProjectTags', [])
         qtn.replies.replies = replies
         return qtn
 
