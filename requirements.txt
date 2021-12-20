@@ -3,7 +3,7 @@ charset-normalizer==2.0.9
 click==8.0.3
 colorama==0.4.4
 idna==3.3
-isodate==0.6.0
+isodate==0.6.1
 Jinja2==3.0.3
 Markdown==3.3.6
 MarkupSafe==2.0.1
