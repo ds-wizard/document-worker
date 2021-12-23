@@ -27,11 +27,13 @@ class DatabaseConfig:
 
 class S3Config:
 
-    def __init__(self, url: str, username: str, password: str, bucket: str):
+    def __init__(self, url: str, username: str, password: str,
+                 bucket: str, region: str):
         self.url = url
         self.username = username
         self.password = password
         self.bucket = bucket
+        self.region = region
 
     def __str__(self):
         return f'S3Config\n' \
@@ -192,6 +194,7 @@ class DocumentWorkerConfigParser:
             'vhost': 'minio',
             'queue': 'minio',
             'bucket': 'engine-wizard',
+            'region': 'eu-central-1',
         },
         LOGGING_SECTION: {
             'level': 'INFO',
@@ -285,6 +288,7 @@ class DocumentWorkerConfigParser:
             username=self.get_or_default(self.S3_SECTION, 'username'),
             password=self.get_or_default(self.S3_SECTION, 'password'),
             bucket=self.get_or_default(self.S3_SECTION, 'bucket'),
+            region=self.get_or_default(self.S3_SECTION, 'region'),
         )
 
     @property
