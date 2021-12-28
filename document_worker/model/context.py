@@ -273,7 +273,7 @@ class Reply:
         self.path = path  # type: str
         self.fragments = path.split('.')  # type: list[str]
         self.created_at = created_at  # type: datetime.datetime
-        self.created_by = created_by  # type: SimpleAuthor
+        self.created_by = created_by  # type: Optional[SimpleAuthor]
         self.type = reply_type  # type: str
         self.question = None  # type: Optional[Question]
 
@@ -969,7 +969,9 @@ class SimpleAuthor:
         self.gravatar_hash = gravatar_hash  # type: Optional[str]
 
     @staticmethod
-    def load(data: dict, **options):
+    def load(data: Optional[dict], **options):
+        if data is None:
+            return None
         return SimpleAuthor(
             uuid=data['uuid'],
             first_name=data['firstName'],
@@ -989,7 +991,7 @@ class QuestionnaireVersion:
         self.description = description  # type: str
         self.created_at = created_at  # type: datetime.datetime
         self.updated_at = updated_at  # type: datetime.datetime
-        self.created_by = created_by  # type: SimpleAuthor
+        self.created_by = created_by  # type: Optional[SimpleAuthor]
 
     @staticmethod
     def load(data: dict, **options):
