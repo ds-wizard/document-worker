@@ -986,7 +986,7 @@ class QuestionnaireVersion:
         self.uuid = uuid  # type: str
         self.event_uuid = event_uuid  # type: str
         self.name = name  # type: str
-        self.description = description  # type: Optional[str]
+        self.description = description  # type: str
         self.created_at = created_at  # type: datetime.datetime
         self.updated_at = updated_at  # type: datetime.datetime
         self.created_by = created_by  # type: SimpleAuthor
@@ -997,7 +997,7 @@ class QuestionnaireVersion:
             uuid=data['uuid'],
             event_uuid=data['eventUuid'],
             name=data['name'],
-            description=data['description'],
+            description=data['description'] or '',
             created_at=_datetime(data['createdAt']),
             updated_at=_datetime(data['updatedAt']),
             created_by=SimpleAuthor.load(data['createdBy'], **options)
@@ -1036,9 +1036,10 @@ class RepliesContainer:
 
 class Questionnaire:
 
-    def __init__(self, uuid, name, created_by, phase_uuid):
+    def __init__(self, uuid, name, description, created_by, phase_uuid):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
+        self.description = description  # type: str
         self.version = None  # type: Optional[QuestionnaireVersion]
         self.versions = list()  # type: list[QuestionnaireVersion]
         self.created_by = created_by  # type: User
@@ -1064,6 +1065,7 @@ class Questionnaire:
         qtn = Questionnaire(
             uuid=data['questionnaireUuid'],
             name=data['questionnaireName'],
+            description=data['questionnaireDescription'] or '',
             created_by=User.load(data['createdBy'], **options),
             phase_uuid=data['phaseUuid'],
         )
