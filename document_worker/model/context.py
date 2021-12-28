@@ -554,7 +554,7 @@ class Question:
         self.references = [ctx.e.references[key] for key in self.reference_uuids]
         for ref in self.references:
             ref._resolve_links(ctx)
-        if self.required_phase_uuid is None:
+        if self.required_phase_uuid is None or ctx.current_phase is None:
             self.is_required = False
         else:
             self.required_phase = ctx.e.phases[self.required_phase_uuid]
