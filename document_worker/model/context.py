@@ -273,7 +273,7 @@ class Reply:
         self.path = path  # type: str
         self.fragments = path.split('.')  # type: list[str]
         self.created_at = created_at  # type: datetime.datetime
-        self.created_by = created_by  # type: SimpleAuthor
+        self.created_by = created_by  # type: Optional[SimpleAuthor]
         self.type = reply_type  # type: str
         self.question = None  # type: Optional[Question]
 
@@ -554,7 +554,7 @@ class Question:
         self.references = [ctx.e.references[key] for key in self.reference_uuids]
         for ref in self.references:
             ref._resolve_links(ctx)
-        if self.required_phase_uuid is None:
+        if self.required_phase_uuid is None or ctx.current_phase is None:
             self.is_required = False
         else:
             self.required_phase = ctx.e.phases[self.required_phase_uuid]
@@ -969,7 +969,9 @@ class SimpleAuthor:
         self.gravatar_hash = gravatar_hash  # type: Optional[str]
 
     @staticmethod
-    def load(data: dict, **options):
+    def load(data: Optional[dict], **options):
+        if data is None:
+            return None
         return SimpleAuthor(
             uuid=data['uuid'],
             first_name=data['firstName'],
@@ -986,10 +988,10 @@ class QuestionnaireVersion:
         self.uuid = uuid  # type: str
         self.event_uuid = event_uuid  # type: str
         self.name = name  # type: str
-        self.description = description  # type: Optional[str]
+        self.description = description  # type: str
         self.created_at = created_at  # type: datetime.datetime
         self.updated_at = updated_at  # type: datetime.datetime
-        self.created_by = created_by  # type: SimpleAuthor
+        self.created_by = created_by  # type: Optional[SimpleAuthor]
 
     @staticmethod
     def load(data: dict, **options):
@@ -997,7 +999,7 @@ class QuestionnaireVersion:
             uuid=data['uuid'],
             event_uuid=data['eventUuid'],
             name=data['name'],
-            description=data['description'],
+            description=data['description'] or '',
             created_at=_datetime(data['createdAt']),
             updated_at=_datetime(data['updatedAt']),
             created_by=SimpleAuthor.load(data['createdBy'], **options)
@@ -1036,14 +1038,16 @@ class RepliesContainer:
 
 class Questionnaire:
 
-    def __init__(self, uuid, name, created_by, phase_uuid):
+    def __init__(self, uuid, name, description, created_by, phase_uuid):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
+        self.description = description  # type: str
         self.version = None  # type: Optional[QuestionnaireVersion]
         self.versions = list()  # type: list[QuestionnaireVersion]
         self.created_by = created_by  # type: User
         self.phase_uuid = phase_uuid  # type: Optional[str]
         self.phase = None  # type: Optional[Phase]
+        self.project_tags = list()  # type: list[str]
         self.replies = RepliesContainer(dict())  # type: RepliesContainer
 
     def _resolve_links(self, ctx):
@@ -1063,11 +1067,13 @@ class Questionnaire:
         qtn = Questionnaire(
             uuid=data['questionnaireUuid'],
             name=data['questionnaireName'],
+            description=data['questionnaireDescription'] or '',
             created_by=User.load(data['createdBy'], **options),
             phase_uuid=data['phaseUuid'],
         )
         qtn.version = version
         qtn.versions = versions
+        qtn.project_tags = data.get('questionnaireProjectTags', [])
         qtn.replies.replies = replies
         return qtn
 

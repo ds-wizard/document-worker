@@ -40,6 +40,7 @@ class S3Storage:
             access_key=self.cfg.username,
             secret_key=self.cfg.password,
             secure=self.cfg.url.startswith('https://'),
+            region=self.cfg.region,
         )
 
     @property
