@@ -273,7 +273,7 @@ class Reply:
         self.path = path  # type: str
         self.fragments = path.split('.')  # type: list[str]
         self.created_at = created_at  # type: datetime.datetime
-        self.created_by = created_by  # type: SimpleAuthor
+        self.created_by = created_by  # type: Optional[SimpleAuthor]
         self.type = reply_type  # type: str
         self.question = None  # type: Optional[Question]
 
@@ -554,7 +554,7 @@ class Question:
         self.references = [ctx.e.references[key] for key in self.reference_uuids]
         for ref in self.references:
             ref._resolve_links(ctx)
-        if self.required_phase_uuid is None:
+        if self.required_phase_uuid is None or ctx.current_phase is None:
             self.is_required = False
         else:
             self.required_phase = ctx.e.phases[self.required_phase_uuid]
@@ -969,7 +969,9 @@ class SimpleAuthor:
         self.gravatar_hash = gravatar_hash  # type: Optional[str]
 
     @staticmethod
-    def load(data: dict, **options):
+    def load(data: Optional[dict], **options):
+        if data is None:
+            return None
         return SimpleAuthor(
             uuid=data['uuid'],
             first_name=data['firstName'],
@@ -989,7 +991,7 @@ class QuestionnaireVersion:
         self.description = description  # type: str
         self.created_at = created_at  # type: datetime.datetime
         self.updated_at = updated_at  # type: datetime.datetime
-        self.created_by = created_by  # type: SimpleAuthor
+        self.created_by = created_by  # type: Optional[SimpleAuthor]
 
     @staticmethod
     def load(data: dict, **options):
