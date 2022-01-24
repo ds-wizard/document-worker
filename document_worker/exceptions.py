@@ -15,8 +15,8 @@ class JobException(Exception):
         if self.exc is None:
             return self.msg
         return f'{self.msg}\n\n' \
-               f'Exception: {type(self.exc).__name__}\n' \
-               f'Message: {str(self.exc)}'
+               f'Caused by: {type(self.exc).__name__}\n' \
+               f'{str(self.exc)}'
 
 
 def create_job_exception(job_id: str, message: str, exc=None):

@@ -165,6 +165,22 @@ def to_context_obj(ctx, **options) -> DocumentContext:
     return result
 
 
+class TemplateRenderingError(RuntimeError):
+
+    def __init__(self, title, message):
+        self.message = f'{title}\n\n{message}'
+
+    def __str__(self):
+        return self.message
+
+
+def raise_error(message, title='Document rendering error'):
+    raise TemplateRenderingError(
+        title=title,
+        message=message,
+    )
+
+
 filters = {
     'any': any,
     'all': all,
@@ -182,4 +198,5 @@ filters = {
     'reply_path': reply_path,
     'to_context_obj': to_context_obj,
     'jinja2': jinja2_render,
+    'error': raise_error,
 }
