@@ -3,6 +3,8 @@ import dateutil.parser as dp
 
 from typing import Optional, Iterable, Union, ItemsView
 
+from document_worker.consts import NULL_UUID
+
 
 def _datetime(timestamp: str) -> datetime.datetime:
     return dp.isoparse(timestamp)
@@ -91,11 +93,11 @@ class Integration:
 
 class Phase:
 
-    def __init__(self, uuid, title, description, annotations):
+    def __init__(self, uuid, title, description, annotations, order=0):
         self.uuid = uuid  # type: str
         self.title = title  # type: str
         self.description = description  # type: Optional[str]
-        self.order = 0  # type: int
+        self.order = order  # type: int
         self.annotations = annotations  # type: dict[str, str]
 
     @property
@@ -115,6 +117,15 @@ class Phase:
             description=data['description'],
             annotations=data['annotations'],
         )
+
+
+PHASE_NEVER = Phase(
+    uuid=NULL_UUID,
+    title='never',
+    description=None,
+    order=10000000,
+    annotations={},
+)
 
 
 class Metric:
@@ -533,7 +544,7 @@ class Question:
         self.expert_uuids = expert_uuids  # type: list[str]
         self.experts = list()  # type: list[Expert]
         self.required_phase_uuid = required_phase_uuid  # type: Optional[str]
-        self.required_phase = None  # type: Optional[Phase]
+        self.required_phase = PHASE_NEVER  # type: Phase
         self.replies = dict()  # type: dict[str, Reply]  # added from replies
         self.is_required = None  # type: Optional[bool]
         self.parent = None  # type: Optional[Union[Chapter, ListQuestion, Answer]]
@@ -557,7 +568,7 @@ class Question:
         if self.required_phase_uuid is None or ctx.current_phase is None:
             self.is_required = False
         else:
-            self.required_phase = ctx.e.phases[self.required_phase_uuid]
+            self.required_phase = ctx.e.phases.get(self.required_phase_uuid, PHASE_NEVER)
             self.is_required = ctx.current_phase.order >= self.required_phase.order
 
     @property
@@ -1046,7 +1057,7 @@ class Questionnaire:
         self.versions = list()  # type: list[QuestionnaireVersion]
         self.created_by = created_by  # type: User
         self.phase_uuid = phase_uuid  # type: Optional[str]
-        self.phase = None  # type: Optional[Phase]
+        self.phase = PHASE_NEVER  # type: Phase
         self.project_tags = list()  # type: list[str]
         self.replies = RepliesContainer(dict())  # type: RepliesContainer
 
@@ -1274,11 +1285,15 @@ class DocumentContext:
         self.document = Document.load(ctx, **options)
         self.package = Package.load(ctx['package'], **options)
         self.organization = Organization.load(ctx['organization'], **options)
-        self.current_phase = None  # type: Optional[Phase]
+        self.current_phase = PHASE_NEVER  # type: Phase
 
     @property
     def e(self) -> KnowledgeModelEntities:
         return self.km.entities
+
+    @property
+    def cfg(self) -> ContextConfig:
+        return self.config
 
     @property
     def qtn(self) -> Questionnaire:
