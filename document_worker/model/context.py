@@ -3,9 +3,31 @@ import dateutil.parser as dp
 
 from typing import Optional, Iterable, Union, ItemsView
 
+from document_worker.consts import NULL_UUID
+
+AnnotationsT = dict[str, Union[str, list[str]]]
+
 
 def _datetime(timestamp: str) -> datetime.datetime:
     return dp.isoparse(timestamp)
+
+
+def _load_annotations(annotations: list[dict[str, str]]) -> AnnotationsT:
+    result = {}  # type: AnnotationsT
+    semi_result = {}  # type: dict[str, list[str]]
+    for item in annotations:
+        key = item.get('key', '')
+        value = item.get('value', '')
+        if key in semi_result.keys():
+            semi_result[key].append(value)
+        else:
+            semi_result[key] = [value]
+    for key, value_list in semi_result.items():
+        if len(value_list) == 1:
+            result[key] = value_list[0]
+        else:
+            result[key] = value_list
+    return result
 
 
 class Tag:
@@ -15,7 +37,7 @@ class Tag:
         self.name = name  # type: str
         self.description = description  # type: Optional[str]
         self.color = color  # type: str
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -33,7 +55,7 @@ class Tag:
             name=data['name'],
             description=data['description'],
             color=data['color'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -55,7 +77,7 @@ class Integration:
         self.rs_list_field = rs_list_field  # type: str
         self.rs_item_id = rs_item_id  # type: str
         self.rs_item_template = rs_item_template  # type: str
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -85,18 +107,18 @@ class Integration:
             rs_list_field=data['responseListField'],
             rs_item_id=data['responseItemId'],
             rs_item_template=data['responseItemTemplate'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
 class Phase:
 
-    def __init__(self, uuid, title, description, annotations):
+    def __init__(self, uuid, title, description, annotations, order=0):
         self.uuid = uuid  # type: str
         self.title = title  # type: str
         self.description = description  # type: Optional[str]
-        self.order = 0  # type: int
-        self.annotations = annotations  # type: dict[str, str]
+        self.order = order  # type: int
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -113,8 +135,17 @@ class Phase:
             uuid=data['uuid'],
             title=data['title'],
             description=data['description'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
+
+
+PHASE_NEVER = Phase(
+    uuid=NULL_UUID,
+    title='never',
+    description=None,
+    order=10000000,
+    annotations={},
+)
 
 
 class Metric:
@@ -124,7 +155,7 @@ class Metric:
         self.title = title  # type: str
         self.description = description  # type: Optional[str]
         self.abbreviation = abbreviation  # type: str
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -142,7 +173,7 @@ class Metric:
             title=data['title'],
             description=data['description'],
             abbreviation=data['abbreviation'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -172,7 +203,7 @@ class Reference:
     def __init__(self, uuid, ref_type, annotations):
         self.uuid = uuid  # type: str
         self.type = ref_type  # type: str
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -200,7 +231,7 @@ class CrossReference(Reference):
             uuid=data['uuid'],
             target_uuid=data['targetUuid'],
             description=data['description'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -217,7 +248,7 @@ class URLReference(Reference):
             uuid=data['uuid'],
             label=data['label'],
             url=data['url'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -236,7 +267,7 @@ class ResourcePageReference(Reference):
         return ResourcePageReference(
             uuid=data['uuid'],
             short_uuid=data['shortUuid'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -246,7 +277,7 @@ class Expert:
         self.uuid = uuid  # type: str
         self.name = name  # type: str
         self.email = email  # type: str
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -263,7 +294,7 @@ class Expert:
             uuid=data['uuid'],
             name=data['name'],
             email=data['email'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -457,7 +488,7 @@ class Answer:
         self.followup_uuids = followup_uuids  # type: list[str]
         self.followups = list()  # type: list[Question]
         self.parent = None  # type: Optional[OptionsQuestion]
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -488,7 +519,7 @@ class Answer:
             advice=data['advice'],
             metric_measures=mm,
             followup_uuids=data['followUpUuids'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -498,7 +529,7 @@ class Choice:
         self.uuid = uuid  # type: str
         self.label = label  # type: str
         self.parent = None  # type: Optional[MultiChoiceQuestion]
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -514,7 +545,7 @@ class Choice:
         return Choice(
             uuid=data['uuid'],
             label=data['label'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -533,11 +564,11 @@ class Question:
         self.expert_uuids = expert_uuids  # type: list[str]
         self.experts = list()  # type: list[Expert]
         self.required_phase_uuid = required_phase_uuid  # type: Optional[str]
-        self.required_phase = None  # type: Optional[Phase]
+        self.required_phase = PHASE_NEVER  # type: Phase
         self.replies = dict()  # type: dict[str, Reply]  # added from replies
         self.is_required = None  # type: Optional[bool]
         self.parent = None  # type: Optional[Union[Chapter, ListQuestion, Answer]]
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -557,7 +588,7 @@ class Question:
         if self.required_phase_uuid is None or ctx.current_phase is None:
             self.is_required = False
         else:
-            self.required_phase = ctx.e.phases[self.required_phase_uuid]
+            self.required_phase = ctx.e.phases.get(self.required_phase_uuid, PHASE_NEVER)
             self.is_required = ctx.current_phase.order >= self.required_phase.order
 
     @property
@@ -616,7 +647,7 @@ class ValueQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             value_type=data['valueType'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -651,7 +682,7 @@ class OptionsQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             answer_uuids=data['answerUuids'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -685,7 +716,7 @@ class MultiChoiceQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             choice_uuids=data['choiceUuids'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -720,7 +751,7 @@ class ListQuestion(Question):
             expert_uuids=data['expertUuids'],
             required_phase_uuid=data['requiredPhaseUuid'],
             followup_uuids=data['itemTemplateQuestionUuids'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -752,7 +783,7 @@ class IntegrationQuestion(Question):
             required_phase_uuid=data['requiredPhaseUuid'],
             integration_uuid=data['integrationUuid'],
             props=data['props'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -765,7 +796,7 @@ class Chapter:
         self.question_uuids = question_uuids  # type: list[str]
         self.questions = list()  # type: list[Question]
         self.reports = list()  # type: list[ReportItem]
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -791,7 +822,7 @@ class Chapter:
             title=data['title'],
             text=data['text'],
             question_uuids=data['questionUuids'],
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -886,7 +917,7 @@ class KnowledgeModel:
         self.phases = list()  # type: list[Phase]
         self.integration_uuids = integration_uuids  # type: list[str]
         self.integrations = list()  # type: list[Integration]
-        self.annotations = annotations  # type: dict[str, str]
+        self.annotations = annotations  # type: AnnotationsT
 
     @property
     def a(self):
@@ -927,7 +958,7 @@ class KnowledgeModel:
             phase_uuids=data['phaseUuids'],
             integration_uuids=data['integrationUuids'],
             entities=KnowledgeModelEntities.load(data['entities'], **options),
-            annotations=data['annotations'],
+            annotations=_load_annotations(data['annotations']),
         )
 
 
@@ -1046,7 +1077,7 @@ class Questionnaire:
         self.versions = list()  # type: list[QuestionnaireVersion]
         self.created_by = created_by  # type: User
         self.phase_uuid = phase_uuid  # type: Optional[str]
-        self.phase = None  # type: Optional[Phase]
+        self.phase = PHASE_NEVER  # type: Phase
         self.project_tags = list()  # type: list[str]
         self.replies = RepliesContainer(dict())  # type: RepliesContainer
 
@@ -1274,11 +1305,15 @@ class DocumentContext:
         self.document = Document.load(ctx, **options)
         self.package = Package.load(ctx['package'], **options)
         self.organization = Organization.load(ctx['organization'], **options)
-        self.current_phase = None  # type: Optional[Phase]
+        self.current_phase = PHASE_NEVER  # type: Phase
 
     @property
     def e(self) -> KnowledgeModelEntities:
         return self.km.entities
+
+    @property
+    def cfg(self) -> ContextConfig:
+        return self.config
 
     @property
     def qtn(self) -> Questionnaire:
