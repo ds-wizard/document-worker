@@ -18,6 +18,7 @@ setup(
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: Apache Software License',
+        'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Topic :: Text Processing',
         ],
@@ -30,6 +31,7 @@ setup(
         'mdx-breakless-lists',
         'minio',
         'pathvalidate',
+        'pdfrw',
         'psycopg2',
         'PyYAML',
         'rdflib',

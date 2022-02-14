@@ -51,6 +51,7 @@ class DBDocument:
     finished_at: Optional[datetime.datetime]
     created_at: datetime.datetime
     app_uuid: str
+    file_size: int
 
 
 @dataclasses.dataclass
@@ -87,6 +88,27 @@ class DBTemplateAsset:
     file_name: str
     content_type: str
     app_uuid: str
+    file_size: int
+
+
+@dataclasses.dataclass
+class DBAppConfig:
+    app_uuid: str
+    feature: dict
+
+    @property
+    def feature_pdf_only(self) -> bool:
+        return self.feature.get('pdfOnlyEnabled', False)
+
+    @property
+    def feature_pdf_watermark(self) -> bool:
+        return self.feature.get('pdfWatermarkEnabled', False)
+
+
+@dataclasses.dataclass
+class DBAppLimits:
+    app_uuid: str
+    storage: Optional[int]
 
 
 def wrap_json_data(data: dict):
@@ -99,13 +121,22 @@ class Database:
     SELECT_JOB = 'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
     DELETE_JOB = 'DELETE FROM document_queue WHERE id = %s;'
     SELECT_DOCUMENT = 'SELECT * FROM document WHERE uuid = %s AND app_uuid = %s LIMIT 1;'
+    SELECT_APP_CONFIG = 'SELECT uuid, feature FROM app_config WHERE uuid = %(app_uuid)s LIMIT 1;'
+    SELECT_APP_LIMIT = 'SELECT uuid, storage FROM app_limit WHERE uuid = %(app_uuid)s LIMIT 1;'
     UPDATE_DOCUMENT_STATE = 'UPDATE document SET state = %s, worker_log = %s WHERE uuid = %s;'
     UPDATE_DOCUMENT_RETRIEVED = 'UPDATE document SET retrieved_at = %s, state = %s WHERE uuid = %s;'
     UPDATE_DOCUMENT_FINISHED = 'UPDATE document SET finished_at = %s, state = %s, ' \
-                               'file_name = %s, content_type = %s, worker_log = %s WHERE uuid = %s;'
+                               'file_name = %s, content_type = %s, worker_log = %s, ' \
+                               'file_size = %s WHERE uuid = %s;'
     SELECT_TEMPLATE = 'SELECT * FROM template WHERE id = %s AND app_uuid = %s LIMIT 1;'
     SELECT_TEMPLATE_FILES = 'SELECT * FROM template_file WHERE template_id = %s AND app_uuid = %s;'
     SELECT_TEMPLATE_ASSETS = 'SELECT * FROM template_asset WHERE template_id = %s AND app_uuid = %s;'
+
+    SUM_FILE_SIZES = 'SELECT (SELECT COALESCE(SUM(file_size)::bigint, 0) ' \
+                     'FROM document WHERE app_uuid = %(app_uuid)s) ' \
+                     '+ (SELECT COALESCE(SUM(file_size)::bigint, 0) ' \
+                     'FROM template_asset WHERE app_uuid = %(app_uuid)s) ' \
+                     'as result;'
 
     def __init__(self, cfg: DatabaseConfig):
         self.cfg = cfg
@@ -126,8 +157,8 @@ class Database:
         )
         self.conn_queue.connect()
 
-    @classmethod
-    def get_as_job(cls, result: dict) -> DBJob:
+    @staticmethod
+    def get_as_job(result: dict) -> DBJob:
         return DBJob(
             id=result['id'],
             document_uuid=result['document_uuid'],
@@ -137,8 +168,22 @@ class Database:
             app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
-    @classmethod
-    def get_as_document(cls, result) -> DBDocument:
+    @staticmethod
+    def get_as_app_config(result: dict) -> DBAppConfig:
+        return DBAppConfig(
+            app_uuid=result['uuid'],
+            feature=result['feature'],
+        )
+
+    @staticmethod
+    def get_as_app_limits(result: dict) -> DBAppLimits:
+        return DBAppLimits(
+            app_uuid=result['uuid'],
+            storage=result['storage'],
+        )
+
+    @staticmethod
+    def get_as_document(result: dict) -> DBDocument:
         return DBDocument(
             uuid=result['uuid'],
             name=result['name'],
@@ -157,10 +202,11 @@ class Database:
             content_type=result['content_type'],
             worker_log=result['worker_log'],
             app_uuid=result.get('app_uuid', NULL_UUID),
+            file_size=result['file_size'],
         )
 
-    @classmethod
-    def get_as_template(cls, result: dict) -> DBTemplate:
+    @staticmethod
+    def get_as_template(result: dict) -> DBTemplate:
         return DBTemplate(
             id=result['id'],
             name=result['name'],
@@ -178,8 +224,8 @@ class Database:
             app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
-    @classmethod
-    def get_as_template_file(cls, result: dict) -> DBTemplateFile:
+    @staticmethod
+    def get_as_template_file(result: dict) -> DBTemplateFile:
         return DBTemplateFile(
             template_id=result['template_id'],
             uuid=result['uuid'],
@@ -188,14 +234,15 @@ class Database:
             app_uuid=result.get('app_uuid', NULL_UUID),
         )
 
-    @classmethod
-    def get_as_template_asset(cls, result: dict) -> DBTemplateAsset:
+    @staticmethod
+    def get_as_template_asset(result: dict) -> DBTemplateAsset:
         return DBTemplateAsset(
             template_id=result['template_id'],
             uuid=result['uuid'],
             file_name=result['file_name'],
             content_type=result['content_type'],
             app_uuid=result.get('app_uuid', NULL_UUID),
+            file_size=result['file_size'],
         )
 
     @tenacity.retry(
@@ -215,6 +262,42 @@ class Database:
             if len(result) != 1:
                 return None
             return self.get_as_document(result[0])
+
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_QUERY_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_QUERY_TRIES),
+        before=tenacity.before_log(Context.logger, logging.DEBUG),
+        after=tenacity.after_log(Context.logger, logging.DEBUG),
+    )
+    def fetch_app_config(self, app_uuid: str) -> Optional[DBAppConfig]:
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
+            cursor.execute(
+                query=self.SELECT_APP_CONFIG,
+                vars={'app_uuid': app_uuid},
+            )
+            result = cursor.fetchall()
+            if len(result) != 1:
+                return None
+            return self.get_as_app_config(result[0])
+
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_QUERY_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_QUERY_TRIES),
+        before=tenacity.before_log(Context.logger, logging.DEBUG),
+        after=tenacity.after_log(Context.logger, logging.DEBUG),
+    )
+    def fetch_app_limits(self, app_uuid: str) -> Optional[DBAppLimits]:
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
+            cursor.execute(
+                query=self.SELECT_APP_LIMIT,
+                vars={'app_uuid': app_uuid},
+            )
+            result = cursor.fetchall()
+            if len(result) != 1:
+                return None
+            return self.get_as_app_limits(result[0])
 
     @tenacity.retry(
         reraise=True,
@@ -307,7 +390,7 @@ class Database:
         after=tenacity.after_log(Context.logger, logging.DEBUG),
     )
     def update_document_finished(
-            self, finished_at: datetime.datetime, file_name: str,
+            self, finished_at: datetime.datetime, file_name: str, file_size: int,
             content_type: str,  worker_log: str, document_uuid: str
     ) -> bool:
         with self.conn_query.new_cursor() as cursor:
@@ -319,15 +402,32 @@ class Database:
                     file_name,
                     content_type,
                     worker_log,
+                    file_size,
                     document_uuid,
                 ),
             )
             return cursor.rowcount == 1
 
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_QUERY_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_QUERY_TRIES),
+        before=tenacity.before_log(Context.logger, logging.DEBUG),
+        after=tenacity.after_log(Context.logger, logging.DEBUG),
+    )
+    def get_currently_used_size(self, app_uuid: str):
+        with self.conn_query.new_cursor() as cursor:
+            cursor.execute(
+                query=self.SUM_FILE_SIZES,
+                vars={'app_uuid': app_uuid},
+            )
+            row = cursor.fetchone()
+            return row[0]
+
 
 class PostgresConnection:
 
-    def __init__(self, name: str, dsn: str, timeout: int = 30000, autocommit: bool = False):
+    def __init__(self, name: str, dsn: str, timeout=30000, autocommit=False):
         self.name = name
         self.listening = False
         self.dsn = psycopg2.extensions.make_dsn(dsn, connect_timeout=timeout)

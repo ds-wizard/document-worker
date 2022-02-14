@@ -2,8 +2,6 @@ import jinja2  # type: ignore
 import jinja2.exceptions  # type: ignore
 import json
 
-from typing import Optional
-
 from document_worker.consts import DEFAULT_ENCODING
 from document_worker.context import Context
 from document_worker.conversions import Pandoc, WkHtmlToPdf, RdfLibConvert
@@ -20,15 +18,16 @@ class FormatStepException(Exception):
 
 
 class Step:
+    NAME = ''
 
     def __init__(self, template, options: dict):
         self.template = template
         self.options = options
 
-    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+    def execute_first(self, context: dict) -> DocumentFile:
         return self.raise_exc('Called execute_follow on Step class')
 
-    def execute_follow(self, document: DocumentFile) -> Optional[DocumentFile]:
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
         return self.raise_exc('Called execute_follow on Step class')
 
     def raise_exc(self, message: str):
@@ -46,7 +45,7 @@ class JSONStep(Step):
             DEFAULT_ENCODING
         )
 
-    def execute_follow(self, document: DocumentFile) -> Optional[DocumentFile]:
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
         return self.raise_exc(f'Step "{self.NAME}" cannot process other files')
 
 
@@ -123,7 +122,7 @@ class Jinja2Step(Step):
                            f'- {str(e)}')
         return DocumentFile(self.output_format, content, DEFAULT_ENCODING)
 
-    def execute_follow(self, document: DocumentFile) -> Optional[DocumentFile]:
+    def execute_follow(self, document: DocumentFile) -> DocumentFile:
         return self.raise_exc(f'Step "{self.NAME}" cannot process other files')
 
 
@@ -136,7 +135,7 @@ class WkHtmlToPdfStep(Step):
         super().__init__(template, options)
         self.wkhtmltopdf = WkHtmlToPdf(config=Context.get().app.cfg)
 
-    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+    def execute_first(self, context: dict) -> DocumentFile:
         return self.raise_exc(f'Step "{self.NAME}" cannot be first')
 
     def execute_follow(self, document: DocumentFile) -> DocumentFile:
@@ -191,7 +190,7 @@ class PandocStep(Step):
         if self.output_format not in self.OUTPUT_FORMATS:
             self.raise_exc(f'Unknown output format "{self.output_format.name}"')
 
-    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+    def execute_first(self, context: dict) -> DocumentFile:
         return self.raise_exc(f'Step "{self.NAME}" cannot be first')
 
     def execute_follow(self, document: DocumentFile) -> DocumentFile:
@@ -234,7 +233,7 @@ class RdfLibConvertStep(Step):
         if self.output_format not in self.OUTPUT_FORMATS:
             self.raise_exc(f'Unknown output format "{self.output_format.name}"')
 
-    def execute_first(self, context: dict) -> Optional[DocumentFile]:
+    def execute_first(self, context: dict) -> DocumentFile:
         return self.raise_exc(f'Step "{self.NAME}" cannot be first')
 
     def execute_follow(self, document: DocumentFile) -> DocumentFile:
