@@ -30,7 +30,11 @@ class FileFormats:
     JSON = FileFormat('json', 'application/json', 'json')
     HTML = FileFormat('html', 'text/html', 'html')
     PDF = FileFormat('pdf', 'application/pdf', 'pdf')
-    DOCX = FileFormat('docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx')
+    DOCX = FileFormat(
+        'docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'docx',
+    )
     Markdown = FileFormat('markdown', 'text/markdown', 'md')
     ODT = FileFormat('odt', 'application/vnd.oasis.opendocument.text', 'odt')
     RST = FileFormat('rst', 'text/x-rst', 'rst')
@@ -38,7 +42,11 @@ class FileFormats:
     EPUB = FileFormat('epub', 'application/epub+zip', 'epub')
     DocBook4 = FileFormat('docbook4', 'application/docbook+xml', 'dbk')
     DocBook5 = FileFormat('docbook5', 'application/docbook+xml', 'dbk')
-    PPTX = FileFormat('pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx')
+    PPTX = FileFormat(
+        'pptx',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'pptx',
+    )
     RTF = FileFormat('rtf', 'application/rtf', 'rtf')
     ADoc = FileFormat('asciidoc', 'text/asciidoc', 'adoc')
     RDF_XML = FileFormat('rdf', 'application/rdf+xml', 'rdf')
@@ -81,14 +89,25 @@ class FileFormats:
 
 class DocumentFile:
 
-    def __init__(self, file_format: FileFormat, content: bytes, encoding: str = DEFAULT_ENCODING):
+    def __init__(self, file_format: FileFormat, content: bytes,
+                 encoding: str = DEFAULT_ENCODING):
         self.file_format = file_format
-        self.content = content
+        self._content = content
+        self.byte_size = len(content)
         self.encoding = encoding
 
     @property
     def content_type(self) -> str:
         return self.file_format.content_type
+
+    @property
+    def content(self) -> bytes:
+        return self._content
+
+    @content.setter
+    def content(self, content: bytes):
+        self._content = content
+        self.byte_size = len(content)
 
     def filename(self, name: str) -> str:
         return f'{name}.{self.file_format.file_extension}'
@@ -126,7 +145,8 @@ class DocumentNameGiver:
     }
 
     @classmethod
-    def name_document(cls, document_metadata: DBDocument, document_file: DocumentFile) -> str:
+    def name_document(cls, document_metadata: DBDocument,
+                      document_file: DocumentFile) -> str:
         config = Context.get().app.cfg
         strategy = cls._STRATEGIES.get(config.doc.naming_strategy, cls._FALLBACK)
         return document_file.filename(strategy(document_metadata))

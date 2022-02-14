@@ -11,14 +11,18 @@ import tenacity
 from typing import Optional
 
 from document_worker.config import DocumentWorkerConfig
-from document_worker.connection.database import Database, DBJob, DBDocument
+from document_worker.connection.database import Database, DBJob,\
+    DBDocument, DBAppConfig, DBAppLimits
 from document_worker.connection.s3storage import S3Storage
 from document_worker.consts import DocumentState, NULL_UUID
 from document_worker.context import Context
 from document_worker.documents import DocumentFile, DocumentNameGiver
 from document_worker.exceptions import create_job_exception, JobException
+from document_worker.limits import LimitsEnforcer
 from document_worker.logging import DocWorkerLogger, DocWorkerLogFilter
 from document_worker.templates import prepare_template
+from document_worker.utils import timeout, JobTimeoutError,\
+    PdfWaterMarker, byte_size_format
 
 RETRY_QUERY_MULTIPLIER = 0.5
 RETRY_QUERY_TRIES = 3
@@ -44,6 +48,8 @@ def handle_job_step(message):
         def handled_step(job, *args, **kwargs):
             try:
                 return func(job, *args, **kwargs)
+            except JobTimeoutError as e:
+                raise e  # re-raise (need to be cached by context manager)
             except Exception as e:
                 job.log.debug('Handling exception', exc_info=True)
                 raise create_job_exception(
@@ -61,11 +67,14 @@ class Job:
         self.ctx = Context.get()
         self.log = Context.logger
         self.template = None
+        self.format = None
         self.app_uuid = db_job.app_uuid
         self.doc_uuid = db_job.document_uuid
         self.doc_context = db_job.document_context
         self.doc = None  # type: Optional[DBDocument]
         self.final_file = None  # type: Optional[DocumentFile]
+        self.app_config = None  # type: Optional[DBAppConfig]
+        self.app_limits = None  # type: Optional[DBAppLimits]
 
     @handle_job_step('Failed to get document from DB')
     def get_document(self):
@@ -124,6 +133,15 @@ class Job:
         )
         # prepare format
         self.template.prepare_format(format_uuid)
+        self.format = self.template.formats.get(format_uuid)
+        # check limits (PDF-only)
+        self.app_config = self.ctx.app.db.fetch_app_config(app_uuid=self.app_uuid)
+        self.app_limits = self.ctx.app.db.fetch_app_limits(app_uuid=self.app_uuid)
+        LimitsEnforcer.check_format(
+            job_id=self.doc_uuid,
+            doc_format=self.format,
+            app_config=self.app_config,
+        )
 
     @handle_job_step('Failed to build final document')
     def build_document(self):
@@ -132,6 +150,25 @@ class Job:
             format_uuid=self.doc.format_uuid,
             context=self.doc_context,
         )
+        # Check limits
+        LimitsEnforcer.check_doc_size(
+            job_id=self.doc_uuid,
+            doc_size=self.final_file.byte_size,
+        )
+        limit_size = None if self.app_limits is None else self.app_limits.storage
+        used_size = self.ctx.app.db.get_currently_used_size(app_uuid=self.app_uuid)
+        LimitsEnforcer.check_size_usage(
+            job_id=self.doc_uuid,
+            doc_size=self.final_file.byte_size,
+            used_size=used_size,
+            limit_size=limit_size,
+        )
+        # Watermark
+        if self.format.is_pdf:
+            self.final_file.content = LimitsEnforcer.make_watermark(
+                doc_pdf=self.final_file.content,
+                app_config=self.app_config,
+            )
 
     @handle_job_step('Failed to store document in S3')
     def store_document(self):
@@ -147,16 +184,22 @@ class Job:
         )
         self.log.info(f'Document {self.doc_uuid} stored in S3 bucket {s3_id}')
 
+    @handle_job_step('Failed to finalize document generation')
     def finalize(self):
         file_name = DocumentNameGiver.name_document(self.doc, self.final_file)
         self.doc.finished_at = datetime.datetime.now()
         self.doc.file_name = file_name
         self.doc.content_type = self.final_file.content_type
+        self.doc.file_size = self.final_file.byte_size
         self.ctx.app.db.update_document_finished(
             finished_at=self.doc.finished_at,
             file_name=self.doc.file_name,
             content_type=self.doc.content_type,
-            worker_log='Document generated successfully... Enjoy!',
+            file_size=self.doc.file_size,
+            worker_log=(
+                f'Document "{file_name}" generated successfully '
+                f'({byte_size_format(self.doc.file_size)}).'
+            ),
             document_uuid=self.doc_uuid,
         )
         self.log.info(f'Document {self.doc_uuid} record finalized')
@@ -175,13 +218,22 @@ class Job:
             self.log.warning(f'Tried to set state of {self.doc_uuid} to {state} but failed: {e}')
             return False
 
+    def _run(self):
+        self.get_document()
+        try:
+            with timeout(Context.get().app.cfg.experimental.job_timeout):
+                self.prepare_template()
+                self.build_document()
+                self.store_document()
+        except TimeoutError:
+            LimitsEnforcer.timeout_exceeded(
+                job_id=self.doc_uuid,
+            )
+        self.finalize()
+
     def run(self):
         try:
-            self.get_document()
-            self.prepare_template()
-            self.build_document()
-            self.store_document()
-            self.finalize()
+            self._run()
         except JobException as e:
             self.log.error(e.log_message())
             if self.try_set_job_state(DocumentState.FAILED, e.db_message()):
@@ -214,6 +266,10 @@ class DocumentWorker:
             workdir=workdir,
             db=Database(cfg=self.config.db),
             s3=S3Storage(cfg=self.config.s3)
+        )
+        PdfWaterMarker.initialize(
+            watermark_filename=self.config.experimental.pdf_watermark,
+            watermark_top=self.config.experimental.pdf_watermark_top,
         )
 
     def _prepare_logging(self):

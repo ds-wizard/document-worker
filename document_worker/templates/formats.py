@@ -1,7 +1,8 @@
-from document_worker.templates.steps import create_step, FormatStepException
 from document_worker.consts import FormatField, StepField
 from document_worker.context import Context
 from document_worker.documents import DocumentFile
+from document_worker.templates.steps import create_step, \
+    FormatStepException, Step, WkHtmlToPdfStep
 
 
 class Format:
@@ -33,7 +34,7 @@ class Format:
                     self.template.raise_exc(f'Missing required field {required_field} '
                                             f'for step in format "{self.name}"')
 
-    def _create_steps(self, metadata: dict):
+    def _create_steps(self, metadata: dict) -> list[Step]:
         steps = []
         for step_meta in metadata[FormatField.STEPS]:
             step_name = step_meta[StepField.NAME]
@@ -52,8 +53,15 @@ class Format:
                                         f'- {str(e)}')
         return steps
 
+    @property
+    def is_pdf(self) -> bool:
+        return isinstance(self.steps[-1], WkHtmlToPdfStep)
+
     def execute(self, context: dict) -> DocumentFile:
         result = self.steps[0].execute_first(context)
         for step in self.steps[1:]:
-            result = step.execute_follow(result)
+            if result is not None:
+                result = step.execute_follow(result)
+            else:
+                break
         return result

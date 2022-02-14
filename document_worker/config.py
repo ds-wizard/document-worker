@@ -68,12 +68,24 @@ class DocumentsConfig:
 
 class ExperimentalConfig:
 
-    def __init__(self, more_apps_enabled: bool):
+    def __init__(self, more_apps_enabled: bool, pdf_only: bool,
+                 job_timeout: Optional[float], max_doc_size: Optional[float],
+                 pdf_watermark: str, pdf_watermark_top: bool):
         self.more_apps_enabled = more_apps_enabled
+        self.pdf_only = pdf_only
+        self.job_timeout = job_timeout
+        self.max_doc_size = max_doc_size
+        self.pdf_watermark = pdf_watermark
+        self.pdf_watermark_top = pdf_watermark_top
 
     def __str__(self):
         return f'ExperimentalConfig\n' \
-               f'- more_apps_enabled = {self.more_apps_enabled}\n'
+               f'- more_apps_enabled = {self.more_apps_enabled}\n' \
+               f'- pdf_only = {self.pdf_only}\n' \
+               f'- job_timeout = {self.job_timeout}\n' \
+               f'- max_doc_size = {self.max_doc_size}\n' \
+               f'- pdf_watermark = {self.pdf_watermark}\n' \
+               f'- pdf_watermark_top = {self.pdf_watermark_top}\n'
 
 
 class CommandConfig:
@@ -221,6 +233,11 @@ class DocumentWorkerConfigParser:
         TEMPLATES_SECTION: [],
         EXPERIMENTAL_SECTION: {
             'moreAppsEnabled': False,
+            'pdfOnly': False,
+            'jobTimeout': None,
+            'maxDocumentSize': None,
+            'pdfWatermark': '/app/data/watermark.pdf',
+            'pdfWatermarkTop': True,
         },
     }
 
@@ -332,6 +349,11 @@ class DocumentWorkerConfigParser:
     def experimental(self) -> ExperimentalConfig:
         return ExperimentalConfig(
             more_apps_enabled=self.get_or_default(self.EXPERIMENTAL_SECTION, 'moreAppsEnabled'),
+            pdf_only=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfOnly'),
+            job_timeout=self.get_or_default(self.EXPERIMENTAL_SECTION, 'jobTimeout'),
+            max_doc_size=self.get_or_default(self.EXPERIMENTAL_SECTION, 'maxDocumentSize'),
+            pdf_watermark=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfWatermark'),
+            pdf_watermark_top=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfWatermarkTop'),
         )
 
     @property
