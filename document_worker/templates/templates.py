@@ -97,7 +97,7 @@ class Template:
     def prepare_template_assets(self):
         Context.logger.info(f'Storing assets of template {self.template_id} locally')
         path_prefix = f'templates/{self.db_template.template.id}'
-        if Context.get().app.cfg.experimental.more_apps_enabled:
+        if Context.get().app.cfg.cloud.multi_tenant:
             path_prefix = f'{self.app_uuid}/{path_prefix}'
         for asset in self.db_template.assets:
             remote_path = f'{path_prefix}/{asset.uuid}'
