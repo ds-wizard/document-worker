@@ -66,14 +66,30 @@ class DocumentsConfig:
                f'- naming_strategy = {self.naming_strategy}\n'
 
 
+class CloudConfig:
+
+    def __init__(self, multi_tenant: bool):
+        self.multi_tenant = multi_tenant
+
+
 class ExperimentalConfig:
 
-    def __init__(self, more_apps_enabled: bool):
-        self.more_apps_enabled = more_apps_enabled
+    def __init__(self, pdf_only: bool, job_timeout: Optional[float],
+                 max_doc_size: Optional[float],
+                 pdf_watermark: str, pdf_watermark_top: bool):
+        self.pdf_only = pdf_only
+        self.job_timeout = job_timeout
+        self.max_doc_size = max_doc_size
+        self.pdf_watermark = pdf_watermark
+        self.pdf_watermark_top = pdf_watermark_top
 
     def __str__(self):
         return f'ExperimentalConfig\n' \
-               f'- more_apps_enabled = {self.more_apps_enabled}\n'
+               f'- pdf_only = {self.pdf_only}\n' \
+               f'- job_timeout = {self.job_timeout}\n' \
+               f'- max_doc_size = {self.max_doc_size}\n' \
+               f'- pdf_watermark = {self.pdf_watermark}\n' \
+               f'- pdf_watermark_top = {self.pdf_watermark_top}\n'
 
 
 class CommandConfig:
@@ -147,7 +163,8 @@ class DocumentWorkerConfig:
 
     def __init__(self, db: DatabaseConfig, s3: S3Config, log: LoggingConfig,
                  doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig,
-                 templates: TemplatesConfig, experimental: ExperimentalConfig):
+                 templates: TemplatesConfig, experimental: ExperimentalConfig,
+                 cloud: CloudConfig):
         self.db = db
         self.s3 = s3
         self.log = log
@@ -156,6 +173,7 @@ class DocumentWorkerConfig:
         self.wkhtmltopdf = wkhtmltopdf
         self.templates = templates
         self.experimental = experimental
+        self.cloud = cloud
 
     def __str__(self):
         return f'DocumentWorkerConfig\n' \
@@ -165,6 +183,7 @@ class DocumentWorkerConfig:
                f'{self.log}' \
                f'{self.doc}' \
                f'{self.experimental}' \
+               f'{self.cloud}' \
                f'Pandoc: {self.pandoc}' \
                f'WkHtmlToPdf: {self.wkhtmltopdf}' \
                f'====================\n'
@@ -182,6 +201,7 @@ class DocumentWorkerConfigParser:
     WKHTMLTOPDF_SUBSECTION = 'wkhtmltopdf'
     TEMPLATES_SECTION = 'templates'
     EXPERIMENTAL_SECTION = 'experimental'
+    CLOUD_SECTION = 'cloud'
 
     DEFAULTS = {
         DB_SECTION: {
@@ -220,7 +240,14 @@ class DocumentWorkerConfigParser:
         },
         TEMPLATES_SECTION: [],
         EXPERIMENTAL_SECTION: {
-            'moreAppsEnabled': False,
+            'pdfOnly': False,
+            'jobTimeout': None,
+            'maxDocumentSize': None,
+            'pdfWatermark': '/app/data/watermark.pdf',
+            'pdfWatermarkTop': True,
+        },
+        CLOUD_SECTION: {
+            'enabled': False,
         },
     }
 
@@ -329,9 +356,19 @@ class DocumentWorkerConfigParser:
         )
 
     @property
+    def cloud(self) -> CloudConfig:
+        return CloudConfig(
+            multi_tenant=self.get_or_default(self.CLOUD_SECTION, 'enabled'),
+        )
+
+    @property
     def experimental(self) -> ExperimentalConfig:
         return ExperimentalConfig(
-            more_apps_enabled=self.get_or_default(self.EXPERIMENTAL_SECTION, 'moreAppsEnabled'),
+            pdf_only=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfOnly'),
+            job_timeout=self.get_or_default(self.EXPERIMENTAL_SECTION, 'jobTimeout'),
+            max_doc_size=self.get_or_default(self.EXPERIMENTAL_SECTION, 'maxDocumentSize'),
+            pdf_watermark=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfWatermark'),
+            pdf_watermark_top=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfWatermarkTop'),
         )
 
     @property
@@ -345,4 +382,5 @@ class DocumentWorkerConfigParser:
             wkhtmltopdf=self.wkhtmltopdf,
             templates=self.templates,
             experimental=self.experimental,
+            cloud=self.cloud,
         )

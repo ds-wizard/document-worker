@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='3.8.0',
+    version='3.9.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -18,6 +18,7 @@ setup(
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: Apache Software License',
+        'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Topic :: Text Processing',
         ],
@@ -30,6 +31,7 @@ setup(
         'mdx-breakless-lists',
         'minio',
         'pathvalidate',
+        'pdfrw',
         'psycopg2',
         'PyYAML',
         'rdflib',

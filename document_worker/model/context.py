@@ -939,7 +939,7 @@ class KnowledgeModel:
                         if key in ctx.e.metrics.keys()]
         self.phases = [ctx.e.phases[key]
                        for key in self.phase_uuids
-                       if key in ctx.e.metrics.keys()]
+                       if key in ctx.e.phases.keys()]
         self.integrations = [ctx.e.integrations[key]
                              for key in self.integration_uuids
                              if key in ctx.e.integrations.keys()]
