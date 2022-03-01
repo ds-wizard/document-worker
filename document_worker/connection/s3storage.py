@@ -69,7 +69,7 @@ class S3Storage:
     def store_document(self, app_uuid: str, file_name: str,
                        content_type: str, data: bytes):
         object_name = f'{DOCUMENTS_DIR}/{file_name}'
-        if Context.get().app.cfg.experimental.more_apps_enabled:
+        if Context.get().app.cfg.cloud.multi_tenant:
             object_name = f'{app_uuid}/{object_name}'
         with temp_binary_file(data=data) as file:
             self.client.put_object(
