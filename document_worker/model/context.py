@@ -61,22 +61,15 @@ class Tag:
 
 class Integration:
 
-    def __init__(self, uuid, name, logo, id, item_url, props, rq_body, rq_headers,
-                 rq_method, rq_url, rs_list_field, rs_item_id, rs_item_template,
-                 annotations):
+    def __init__(self, uuid, name, logo, integration_id, item_url, props,
+                 integration_type, annotations):
         self.uuid = uuid  # type: str
         self.name = name  # type: str
-        self.id = id  # type: str
+        self.id = integration_id  # type: str
         self.item_url = item_url  # type: str
         self.logo = logo  # type: str
         self.props = props  # type: dict[str, str]
-        self.rq_body = rq_body  # type: str
-        self.rq_method = rq_method  # type: str
-        self.rq_url = rq_url  # type: str
-        self.rq_headers = rq_headers  # type: dict[str, str]
-        self.rs_list_field = rs_list_field  # type: str
-        self.rs_item_id = rs_item_id  # type: str
-        self.rs_item_template = rs_item_template  # type: str
+        self.type = integration_type  # type: str
         self.annotations = annotations  # type: AnnotationsT
 
     @property
@@ -91,13 +84,37 @@ class Integration:
             return False
         return other.uuid == self.uuid
 
+
+class ApiIntegration(Integration):
+
+    def __init__(self, uuid, name, logo, integration_id, item_url, props, rq_body,
+                 rq_headers, rq_method, rq_url, rs_list_field, rs_item_id,
+                 rs_item_template, annotations):
+        super().__init__(
+            uuid=uuid,
+            name=name,
+            logo=logo,
+            integration_id=integration_id,
+            item_url=item_url,
+            props=props,
+            annotations=annotations,
+            integration_type='ApiIntegration',
+        )
+        self.rq_body = rq_body  # type: str
+        self.rq_method = rq_method  # type: str
+        self.rq_url = rq_url  # type: str
+        self.rq_headers = rq_headers  # type: dict[str, str]
+        self.rs_list_field = rs_list_field  # type: str
+        self.rs_item_id = rs_item_id  # type: str
+        self.rs_item_template = rs_item_template  # type: str
+
     @staticmethod
     def load(data: dict, **options):
-        return Integration(
+        return ApiIntegration(
             uuid=data['uuid'],
             name=data['name'],
-            id=data['id'],
-            item_url=data['responseItemUrl'],
+            integration_id=data['id'],
+            item_url=data['itemUrl'],
             logo=data['logo'],
             props=data['props'],
             rq_body=data['requestBody'],
@@ -107,6 +124,36 @@ class Integration:
             rs_list_field=data['responseListField'],
             rs_item_id=data['responseItemId'],
             rs_item_template=data['responseItemTemplate'],
+            annotations=_load_annotations(data['annotations']),
+        )
+
+
+class WidgetIntegration(Integration):
+
+    def __init__(self, uuid, name, logo, integration_id, item_url, props,
+                 widget_url, annotations):
+        super().__init__(
+            uuid=uuid,
+            name=name,
+            logo=logo,
+            integration_id=integration_id,
+            item_url=item_url,
+            props=props,
+            annotations=annotations,
+            integration_type='WidgetIntegration',
+        )
+        self.widget_url = widget_url  # type: str
+
+    @staticmethod
+    def load(data: dict, **options):
+        return WidgetIntegration(
+            uuid=data['uuid'],
+            name=data['name'],
+            integration_id=data['id'],
+            item_url=data['itemUrl'],
+            logo=data['logo'],
+            props=data['props'],
+            widget_url=data['widgetUrl'],
             annotations=_load_annotations(data['annotations']),
         )
 
@@ -848,6 +895,13 @@ def _load_reference(data: dict, **options):
         return CrossReference.load(data, **options)
 
 
+def _load_integration(data: dict, **options):
+    if data['integrationType'] == 'ApiIntegration':
+        return ApiIntegration.load(data, **options)
+    if data['integrationType'] == 'WidgetIntegration':
+        return WidgetIntegration.load(data, **options)
+
+
 def _load_reply(path: str, data: dict, **options):
     if data['value']['type'] == 'AnswerReply':
         return AnswerReply.load(path, data, **options)
@@ -896,7 +950,7 @@ class KnowledgeModelEntities:
                      for key, d in data['metrics'].items()}
         e.phases = {key: Phase.load(d, **options)
                     for key, d in data['phases'].items()}
-        e.integrations = {key: Integration.load(d, **options)
+        e.integrations = {key: _load_integration(d, **options)
                           for key, d in data['integrations'].items()}
         return e
 
