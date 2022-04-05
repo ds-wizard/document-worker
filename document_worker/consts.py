@@ -1,6 +1,6 @@
 DEFAULT_ENCODING = 'utf-8'
 EXIT_SUCCESS = 0
-VERSION = '3.9.0'
+VERSION = '3.10.0'
 PROG_NAME = 'docworker'
 LOGGER_NAME = 'docworker'
 CURRENT_METAMODEL = 9
