@@ -28,6 +28,7 @@ setup(
         'click',
         'jinja2',
         'Markdown',
+        'MarkupSafe',
         'mdx-breakless-lists',
         'minio',
         'pathvalidate',

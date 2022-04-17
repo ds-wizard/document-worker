@@ -1,5 +1,5 @@
-import jinja2  # type: ignore
-import jinja2.exceptions  # type: ignore
+import jinja2
+import jinja2.exceptions
 import json
 
 from document_worker.consts import DEFAULT_ENCODING

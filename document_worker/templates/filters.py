@@ -1,6 +1,7 @@
 import datetime
 import dateutil.parser as dp
-import jinja2  # type: ignore
+import jinja2
+import markupsafe
 import markdown
 
 from typing import Any, Union, Optional
@@ -74,7 +75,7 @@ def roman(n: int) -> str:
 def xmarkdown(md_text: str):
     if md_text is None:
         return ''
-    return jinja2.Markup(markdown.markdown(
+    return markupsafe.Markup(markdown.markdown(
         text=md_text,
         extensions=[
             'mdx_breakless_lists',
