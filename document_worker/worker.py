@@ -20,7 +20,7 @@ from document_worker.documents import DocumentFile, DocumentNameGiver
 from document_worker.exceptions import create_job_exception, JobException
 from document_worker.limits import LimitsEnforcer
 from document_worker.logging import DocWorkerLogger, DocWorkerLogFilter
-from document_worker.templates import prepare_template
+from document_worker.templates import TemplateRegistry
 from document_worker.utils import timeout, JobTimeoutError,\
     PdfWaterMarker, byte_size_format
 
@@ -111,25 +111,9 @@ class Job:
         format_uuid = self.doc.format_uuid
         self.log.info(f'Document uses template {template_id} with format {format_uuid}')
         # prepare template
-        query_args = dict(
+        self.template = TemplateRegistry.get().prepare_template(
+            app_uuid=self.app_uuid,
             template_id=template_id,
-            app_uuid=self.app_uuid,
-        )
-        db_template = self.ctx.app.db.fetch_template(**query_args)
-        if db_template is None:
-            raise create_job_exception(
-                job_id=self.doc_uuid,
-                message=f'Template {template_id} not found in database',
-            )
-        # prepare template files
-        db_files = self.ctx.app.db.fetch_template_files(**query_args)
-        db_assets = self.ctx.app.db.fetch_template_assets(**query_args)
-        # prepare template
-        self.template = prepare_template(
-            app_uuid=self.app_uuid,
-            template=db_template,
-            files=db_files,
-            assets=db_assets,
         )
         # prepare format
         self.template.prepare_format(format_uuid)
