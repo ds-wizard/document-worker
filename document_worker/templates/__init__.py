@@ -1,3 +1,3 @@
-from document_worker.templates.templates import prepare_template, Template
+from document_worker.templates.templates import TemplateRegistry, Template
 
-__all__ = ['prepare_template', 'Template']
+__all__ = ['TemplateRegistry', 'Template']
