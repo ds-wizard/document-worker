@@ -1,4 +1,4 @@
-import rdflib  # type: ignore
+import rdflib
 import shlex
 import subprocess
 
