@@ -677,6 +677,26 @@ class ValueQuestion(Question):
         return self.value_type == 'NumberQuestionValueType'
 
     @property
+    def is_email(self):
+        return self.value_type == 'EmailQuestionValueType'
+
+    @property
+    def is_url(self):
+        return self.value_type == 'UrlQuestionValueType'
+
+    @property
+    def is_color(self):
+        return self.value_type == 'ColorQuestionValueType'
+
+    @property
+    def is_time(self):
+        return self.value_type == 'TimeQuestionValueType'
+
+    @property
+    def is_datetime(self):
+        return self.value_type == 'DateTimeQuestionValueType'
+
+    @property
     def is_date(self):
         return self.value_type == 'DateQuestionValueType'
 
