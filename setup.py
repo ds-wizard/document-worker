@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='3.11.0',
+    version='3.12.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -21,7 +21,7 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Topic :: Text Processing',
-        ],
+    ],
     zip_safe=False,
     python_requires='>=3.8, <4',
     install_requires=[
