@@ -1335,6 +1335,8 @@ class User:
 
     @staticmethod
     def load(data: dict, **options):
+        if data is None:
+            return None
         return User(
             uuid=data['uuid'],
             first_name=data['firstName'],
