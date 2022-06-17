@@ -1,3 +1,5 @@
+
+
 database:
   connectionString: postgresql://postgres:postgres@postgres:5432/engine-wizard
   stripeSize: 1 # used by SE only
@@ -24,6 +26,13 @@ templates:
       timeout:
     secrets:
       API_TOKEN:
+
+#sentry:
+#  enabled:
+#  workersDsn:
+#general:
+#  environment: Test
+#  clientUrl: http://localhost:3001
 
 #documents:
 #  naming:
