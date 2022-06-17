@@ -4,6 +4,7 @@ import click  # type: ignore
 from typing import IO
 
 from document_worker.config import DocumentWorkerConfig, DocumentWorkerConfigParser, MissingConfigurationError
+from document_worker.connection.sentry import SentryReporter
 from document_worker.consts import VERSION
 from document_worker.worker import DocumentWorker
 
@@ -38,5 +39,6 @@ def main(config: DocumentWorkerConfig, workdir: str):
     try:
         worker.run()
     except Exception as e:
+        SentryReporter.capture_exception(e)
         click.echo(f'Ended with error: {e}')
         exit(2)

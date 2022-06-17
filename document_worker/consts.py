@@ -1,6 +1,6 @@
 DEFAULT_ENCODING = 'utf-8'
 EXIT_SUCCESS = 0
-VERSION = '3.12.1'
+PACKAGE_VERSION = '3.12.1'
 PROG_NAME = 'docworker'
 LOGGER_NAME = 'docworker'
 CURRENT_METAMODEL = 9
@@ -46,3 +46,17 @@ class DocumentNamingStrategy:
     @classmethod
     def get(cls, name: str):
         return cls._NAMES.get(name.lower(), cls._DEFAULT)
+
+
+_DEFAULT_BUILT_AT = 'BUILT_AT'
+BUILT_AT = '--BUILT_AT--'
+_DEFAULT_VERSION = 'VERSION'
+VERSION = '--VERSION--'
+
+
+BUILD_INFO = {
+    'name': PROG_NAME,
+    'packageVersion': PACKAGE_VERSION,
+    'version': VERSION if VERSION != f'--{_DEFAULT_VERSION}--' else 'unknown',
+    'builtAt': BUILT_AT if BUILT_AT != f'--{_DEFAULT_BUILT_AT}--' else 'unknown',
+}

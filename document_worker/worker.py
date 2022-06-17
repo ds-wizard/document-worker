@@ -14,6 +14,7 @@ from document_worker.config import DocumentWorkerConfig
 from document_worker.connection.database import Database, DBJob,\
     DBDocument, DBAppConfig, DBAppLimits
 from document_worker.connection.s3storage import S3Storage
+from document_worker.connection.sentry import SentryReporter
 from document_worker.consts import DocumentState, NULL_UUID
 from document_worker.context import Context
 from document_worker.documents import DocumentFile, DocumentNameGiver
@@ -199,6 +200,7 @@ class Job:
         try:
             return self.set_job_state(state, message)
         except Exception as e:
+            SentryReporter.capture_exception(e)
             self.log.warning(f'Tried to set state of {self.doc_uuid} to {state} but failed: {e}')
             return False
 
@@ -225,6 +227,7 @@ class Job:
             else:
                 self.log.warning(f'Could not set state to {DocumentState.FAILED}')
         except Exception as e:
+            SentryReporter.capture_exception(e)
             job_exc = create_job_exception(
                 job_id=self.doc_uuid,
                 message='Failed with unexpected error',
@@ -255,6 +258,12 @@ class DocumentWorker:
             watermark_filename=self.config.experimental.pdf_watermark,
             watermark_top=self.config.experimental.pdf_watermark_top,
         )
+        if self.config.sentry.enabled and self.config.sentry.workers_dsn is not None:
+            SentryReporter.initialize(
+                dsn=self.config.sentry.workers_dsn,
+                environment=self.config.general.environment,
+                server_name=self.config.general.client_url,
+            )
 
     def _prepare_logging(self):
         logging.basicConfig(
