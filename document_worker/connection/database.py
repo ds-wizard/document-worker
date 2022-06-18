@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import json
 import logging
 import psycopg2  # type: ignore
 import psycopg2.extensions  # type: ignore
@@ -20,16 +21,6 @@ RETRY_QUERY_TRIES = 3
 
 RETRY_CONNECT_MULTIPLIER = 0.2
 RETRY_CONNECT_TRIES = 10
-
-
-@dataclasses.dataclass
-class DBJob:
-    id: int
-    document_uuid: str
-    document_context: dict
-    created_by: Optional[str]
-    created_at: datetime.datetime
-    app_uuid: str
 
 
 @dataclasses.dataclass
@@ -92,6 +83,39 @@ class DBTemplateAsset:
 
 
 @dataclasses.dataclass
+class PersistentCommand:
+    uuid: str
+    state: str
+    component: str
+    function: str
+    body: dict
+    last_error_message: Optional[str]
+    attempts: int
+    max_attempts: int
+    app_uuid: str
+    created_by: Optional[str]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    @staticmethod
+    def deserialize(data: dict):
+        return PersistentCommand(
+            uuid=data['uuid'],
+            state=data['state'],
+            component=data['component'],
+            function=data['function'],
+            body=json.loads(data['body']),
+            last_error_message=data['last_error_message'],
+            attempts=data['attempts'],
+            max_attempts=data['max_attempts'],
+            created_by=data['created_by'],
+            created_at=data['created_at'],
+            updated_at=data['updated_at'],
+            app_uuid=data.get('app_uuid', NULL_UUID),
+        )
+
+
+@dataclasses.dataclass
 class DBAppConfig:
     app_uuid: str
     feature: dict
@@ -117,9 +141,6 @@ def wrap_json_data(data: dict):
 
 class Database:
 
-    LISTEN = 'LISTEN document_queue_channel;'
-    SELECT_JOB = 'SELECT * FROM document_queue LIMIT 1 FOR UPDATE SKIP LOCKED;'
-    DELETE_JOB = 'DELETE FROM document_queue WHERE id = %s;'
     SELECT_DOCUMENT = 'SELECT * FROM document WHERE uuid = %s AND app_uuid = %s LIMIT 1;'
     SELECT_APP_CONFIG = 'SELECT uuid, feature FROM app_config WHERE uuid = %(app_uuid)s LIMIT 1;'
     SELECT_APP_LIMIT = 'SELECT uuid, storage FROM app_limit WHERE uuid = %(app_uuid)s LIMIT 1;'
@@ -157,16 +178,9 @@ class Database:
         )
         self.conn_queue.connect()
 
-    @staticmethod
-    def get_as_job(result: dict) -> DBJob:
-        return DBJob(
-            id=result['id'],
-            document_uuid=result['document_uuid'],
-            document_context=result['document_context'],
-            created_by=result['created_by'],
-            created_at=result['created_at'],
-            app_uuid=result.get('app_uuid', NULL_UUID),
-        )
+    def connect(self):
+        self.conn_query.connect()
+        self.conn_queue.connect()
 
     @staticmethod
     def get_as_app_config(result: dict) -> DBAppConfig:
@@ -424,6 +438,17 @@ class Database:
             row = cursor.fetchone()
             return row[0]
 
+    @tenacity.retry(
+        reraise=True,
+        wait=tenacity.wait_exponential(multiplier=RETRY_QUERY_MULTIPLIER),
+        stop=tenacity.stop_after_attempt(RETRY_QUERY_TRIES),
+        before=tenacity.before_log(Context.logger, logging.DEBUG),
+        after=tenacity.after_log(Context.logger, logging.DEBUG),
+    )
+    def execute_query(self, query: str, **kwargs):
+        with self.conn_query.new_cursor(use_dict=True) as cursor:
+            cursor.execute(query=query, vars=kwargs)
+
 
 class PostgresConnection:
 
@@ -447,7 +472,7 @@ class PostgresConnection:
         connection.set_isolation_level(self.isolation)
         # test connection
         cursor = connection.cursor()
-        cursor.execute(query='SELECT * FROM document_queue;')
+        cursor.execute(query='SELECT * FROM persistent_command;')
         result = cursor.fetchall()
         Context.logger.debug(f'Jobs in queue: {result}')
         cursor.close()
