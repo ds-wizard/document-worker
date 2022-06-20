@@ -6,7 +6,7 @@ with open('README.md') as f:
 
 setup(
     name='document_worker',
-    version='3.12.1',
+    version='3.13.0',
     description='Worker for assembling and transforming documents',
     long_description=long_description,
     long_description_content_type='text/markdown',
