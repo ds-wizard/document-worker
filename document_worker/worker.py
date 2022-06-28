@@ -2,19 +2,19 @@ import datetime
 import functools
 import logging
 import pathlib
-import select
-import signal
 import sys
 import uuid
-import tenacity
 
 from typing import Optional
 
 from document_worker.config import DocumentWorkerConfig
-from document_worker.connection.database import Database, DBJob,\
-    DBDocument, DBAppConfig, DBAppLimits
+from document_worker.connection.command_queue import CommandWorker,\
+    CommandQueue
+from document_worker.connection.database import Database,\
+    DBDocument, DBAppConfig, DBAppLimits, PersistentCommand
 from document_worker.connection.s3storage import S3Storage
-from document_worker.consts import DocumentState, NULL_UUID
+from document_worker.connection.sentry import SentryReporter
+from document_worker.consts import DocumentState, NULL_UUID, Queries
 from document_worker.context import Context
 from document_worker.documents import DocumentFile, DocumentNameGiver
 from document_worker.exceptions import create_job_exception, JobException
@@ -23,23 +23,6 @@ from document_worker.logging import DocWorkerLogger, DocWorkerLogFilter
 from document_worker.templates import TemplateRegistry
 from document_worker.utils import timeout, JobTimeoutError,\
     PdfWaterMarker, byte_size_format
-
-RETRY_QUERY_MULTIPLIER = 0.5
-RETRY_QUERY_TRIES = 3
-RETRY_QUEUE_MULTIPLIER = 0.5
-RETRY_QUEUE_TRIES = 5
-
-INTERRUPTED = False
-
-
-def signal_handler(recv_signal, frame):
-    Context.logger.info(f'Received interrupt signal: {recv_signal}')
-    global INTERRUPTED
-    INTERRUPTED = True
-
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGABRT, signal_handler)
 
 
 def handle_job_step(message):
@@ -63,14 +46,14 @@ def handle_job_step(message):
 
 class Job:
 
-    def __init__(self, db_job: DBJob):
+    def __init__(self, command: PersistentCommand):
         self.ctx = Context.get()
         self.log = Context.logger
         self.template = None
         self.format = None
-        self.app_uuid = db_job.app_uuid
-        self.doc_uuid = db_job.document_uuid
-        self.doc_context = db_job.document_context
+        self.app_uuid = command.app_uuid
+        self.doc_uuid = command.body['uuid']
+        self.doc_context = command.body
         self.doc = None  # type: Optional[DBDocument]
         self.final_file = None  # type: Optional[DocumentFile]
         self.app_config = None  # type: Optional[DBAppConfig]
@@ -199,6 +182,7 @@ class Job:
         try:
             return self.set_job_state(state, message)
         except Exception as e:
+            SentryReporter.capture_exception(e)
             self.log.warning(f'Tried to set state of {self.doc_uuid} to {state} but failed: {e}')
             return False
 
@@ -223,8 +207,10 @@ class Job:
             if self.try_set_job_state(DocumentState.FAILED, e.db_message()):
                 self.log.info(f'Set state to {DocumentState.FAILED}')
             else:
-                self.log.warning(f'Could not set state to {DocumentState.FAILED}')
+                self.log.error(f'Could not set state to {DocumentState.FAILED}')
+                raise RuntimeError(f'Could not set state to {DocumentState.FAILED}')
         except Exception as e:
+            SentryReporter.capture_exception(e)
             job_exc = create_job_exception(
                 job_id=self.doc_uuid,
                 message='Failed with unexpected error',
@@ -235,9 +221,10 @@ class Job:
                 self.log.info(f'Set state to {DocumentState.FAILED}')
             else:
                 self.log.warning(f'Could not set state to {DocumentState.FAILED}')
+                raise RuntimeError(f'Could not set state to {DocumentState.FAILED}')
 
 
-class DocumentWorker:
+class DocumentWorker(CommandWorker):
 
     def __init__(self, config: DocumentWorkerConfig, workdir: pathlib.Path):
         self.config = config
@@ -255,6 +242,12 @@ class DocumentWorker:
             watermark_filename=self.config.experimental.pdf_watermark,
             watermark_top=self.config.experimental.pdf_watermark_top,
         )
+        if self.config.sentry.enabled and self.config.sentry.workers_dsn is not None:
+            SentryReporter.initialize(
+                dsn=self.config.sentry.workers_dsn,
+                environment=self.config.general.environment,
+                server_name=self.config.general.client_url,
+            )
 
     def _prepare_logging(self):
         logging.basicConfig(
@@ -271,80 +264,57 @@ class DocumentWorker:
             logger.addFilter(filter=log_filter)
         logging.setLoggerClass(DocWorkerLogger)
 
-    @tenacity.retry(
-        reraise=True,
-        wait=tenacity.wait_exponential(multiplier=RETRY_QUEUE_MULTIPLIER),
-        stop=tenacity.stop_after_attempt(RETRY_QUEUE_TRIES),
-        before=tenacity.before_log(Context.logger, logging.INFO),
-        after=tenacity.after_log(Context.logger, logging.INFO),
-    )
     def run(self):
-        ctx = Context.get()
-        Context.logger.info('Preparing to listen for document jobs')
-        queue_conn = ctx.app.db.conn_queue
-        with queue_conn.new_cursor() as cursor:
-            cursor.execute(Database.LISTEN)
-            queue_conn.listening = True
-            Context.logger.info('Listening on document job queue')
+        Context.get().app.db.connect()
+        Context.logger.info('Preparing command queue')
+        queue = CommandQueue(
+            worker=self,
+            listen_query=Queries.LISTEN,
+        )
+        queue.run()
 
-            notifications = list()
-            timeout = ctx.app.cfg.db.queue_timout
-
-            Context.logger.info('Entering working cycle, waiting for notifications')
-            while True:
-                while self._work():
-                    pass
-
-                Context.logger.debug('Waiting for new notifications')
-                notifications.clear()
-                if not queue_conn.listening:
-                    cursor.execute(Database.LISTEN)
-                    queue_conn.listening = True
-
-                w = select.select([queue_conn.connection], [], [], timeout)
-                if w == ([], [], []):
-                    Context.logger.debug(f'Nothing received in this cycle '
-                                         f'(timeouted after {timeout} seconds.')
-                else:
-                    queue_conn.connection.poll()
-                    while queue_conn.connection.notifies:
-                        notifications.append(queue_conn.connection.notifies.pop())
-                    Context.logger.info(f'Notifications received ({len(notifications)})')
-                    Context.logger.debug(f'Notifications: {notifications}')
-
-                if INTERRUPTED:
-                    Context.logger.debug('Interrupt signal received, ending...')
-                    break
-
-    @tenacity.retry(
-        reraise=True,
-        wait=tenacity.wait_exponential(multiplier=RETRY_QUERY_MULTIPLIER),
-        stop=tenacity.stop_after_attempt(RETRY_QUERY_TRIES),
-        before=tenacity.before_log(Context.logger, logging.DEBUG),
-        after=tenacity.after_log(Context.logger, logging.DEBUG),
-    )
-    def _work(self):
+    def work(self) -> bool:
         Context.update_trace_id(str(uuid.uuid4()))
         ctx = Context.get()
         Context.logger.debug('Trying to fetch a new job')
         cursor = ctx.app.db.conn_query.new_cursor(use_dict=True)
-        cursor.execute(Database.SELECT_JOB)
+        cursor.execute(Queries.SELECT_CMD, {'now': datetime.datetime.utcnow()})
         result = cursor.fetchall()
         if len(result) != 1:
             Context.logger.debug(f'Fetched {len(result)} jobs')
             return False
-        db_job = Database.get_as_job(result[0])
-        Context.update_document_id(db_job.document_uuid)
-        Context.logger.info(f'Fetched job #{db_job.id}')
-        job = Job(db_job=db_job)
-        job.run()
-        Context.logger.debug('Working done, deleting job from queue')
-        cursor.execute(
-            query=Database.DELETE_JOB,
-            vars=(db_job.id,)
-        )
+
+        command = PersistentCommand.deserialize(result[0])
+        try:
+            self._process_command(command)
+        except Exception as e:
+            Context.logger.warning(f'Errored with exception: {str(e)} ({type(e).__name__})')
+            SentryReporter.capture_exception(e)
+            ctx.app.db.execute_query(
+                query=Queries.UPDATE_CMD_ERROR,
+                attempts=command.attempts + 1,
+                error_message=f'Failed with exception: {str(e)} ({type(e).__name__})',
+                updated_at=datetime.datetime.utcnow(),
+                uuid=command.uuid,
+            )
+
         Context.logger.info('Committing transaction')
         ctx.app.db.conn_query.connection.commit()
         cursor.close()
-        job.log.info('Job processing finished')
+
+        Context.logger.info('Job processing finished')
+        Context.update_trace_id('-')
         return True
+
+    def _process_command(self, command: PersistentCommand):
+        app_ctx = Context.get().app
+        Context.update_document_id(command.body['uuid'])
+        Context.logger.info(f'Fetched job #{command.uuid}')
+        job = Job(command=command)
+        job.run()
+        app_ctx.db.execute_query(
+            query=Queries.UPDATE_CMD_DONE,
+            attempts=command.attempts + 1,
+            updated_at=datetime.datetime.utcnow(),
+            uuid=command.uuid,
+        )

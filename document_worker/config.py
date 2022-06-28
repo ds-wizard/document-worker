@@ -11,6 +11,30 @@ class MissingConfigurationError(Exception):
         self.missing = missing
 
 
+class GeneralConfig:
+
+    def __init__(self, environment: str, client_url: str):
+        self.environment = environment
+        self.client_url = client_url
+
+    def __str__(self):
+        return f'GeneralConfig\n' \
+               f'- environment = {self.environment} ({type(self.environment)})\n' \
+               f'- client_url = {self.client_url} ({type(self.client_url)})\n'
+
+
+class SentryConfig:
+
+    def __init__(self, enabled: bool, workers_dsn: Optional[str]):
+        self.enabled = enabled
+        self.workers_dsn = workers_dsn
+
+    def __str__(self):
+        return f'SentryConfig\n' \
+               f'- enabled = {self.enabled} ({type(self.enabled)})\n' \
+               f'- workers_dsn = {self.workers_dsn} ({type(self.workers_dsn)})\n'
+
+
 class DatabaseConfig:
 
     def __init__(self, connection_string: str, connection_timeout: int, queue_timout: int):
@@ -164,7 +188,7 @@ class DocumentWorkerConfig:
     def __init__(self, db: DatabaseConfig, s3: S3Config, log: LoggingConfig,
                  doc: DocumentsConfig, pandoc: CommandConfig, wkhtmltopdf: CommandConfig,
                  templates: TemplatesConfig, experimental: ExperimentalConfig,
-                 cloud: CloudConfig):
+                 cloud: CloudConfig, sentry: SentryConfig, general: GeneralConfig):
         self.db = db
         self.s3 = s3
         self.log = log
@@ -174,6 +198,8 @@ class DocumentWorkerConfig:
         self.templates = templates
         self.experimental = experimental
         self.cloud = cloud
+        self.sentry = sentry
+        self.general = general
 
     def __str__(self):
         return f'DocumentWorkerConfig\n' \
@@ -184,6 +210,8 @@ class DocumentWorkerConfig:
                f'{self.doc}' \
                f'{self.experimental}' \
                f'{self.cloud}' \
+               f'{self.sentry}' \
+               f'{self.general}' \
                f'Pandoc: {self.pandoc}' \
                f'WkHtmlToPdf: {self.wkhtmltopdf}' \
                f'====================\n'
@@ -202,6 +230,8 @@ class DocumentWorkerConfigParser:
     TEMPLATES_SECTION = 'templates'
     EXPERIMENTAL_SECTION = 'experimental'
     CLOUD_SECTION = 'cloud'
+    SENTRY_SECTION = 'sentry'
+    GENERAL_SECTION = 'general'
 
     DEFAULTS = {
         DB_SECTION: {
@@ -248,6 +278,14 @@ class DocumentWorkerConfigParser:
         },
         CLOUD_SECTION: {
             'enabled': False,
+        },
+        SENTRY_SECTION: {
+            'enabled': False,
+            'workersDsn': None
+        },
+        GENERAL_SECTION: {
+            'environment': 'Production',
+            'clientUrl': 'http://localhost:8080',
         },
     }
 
@@ -362,6 +400,20 @@ class DocumentWorkerConfigParser:
         )
 
     @property
+    def sentry(self) -> SentryConfig:
+        return SentryConfig(
+            enabled=self.get_or_default(self.SENTRY_SECTION, 'enabled'),
+            workers_dsn=self.get_or_default(self.SENTRY_SECTION, 'workersDsn'),
+        )
+
+    @property
+    def general(self) -> GeneralConfig:
+        return GeneralConfig(
+            environment=self.get_or_default(self.GENERAL_SECTION, 'environment'),
+            client_url=self.get_or_default(self.GENERAL_SECTION, 'clientUrl'),
+        )
+
+    @property
     def experimental(self) -> ExperimentalConfig:
         return ExperimentalConfig(
             pdf_only=self.get_or_default(self.EXPERIMENTAL_SECTION, 'pdfOnly'),
@@ -383,4 +435,6 @@ class DocumentWorkerConfigParser:
             templates=self.templates,
             experimental=self.experimental,
             cloud=self.cloud,
+            sentry=self.sentry,
+            general=self.general,
         )
