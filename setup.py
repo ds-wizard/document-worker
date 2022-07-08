@@ -40,6 +40,7 @@ setup(
         'requests',
         'python-slugify',
         'python-dateutil',
+        'sentry-sdk',
         'tenacity',
     ],
     entry_points={
