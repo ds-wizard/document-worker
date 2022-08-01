@@ -7,7 +7,9 @@
 [![GitHub](https://img.shields.io/github/license/ds-wizard/document-worker)](LICENSE)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4975/badge)](https://bestpractices.coreinfrastructure.org/projects/4975)
 
-*Worker for assembling and transforming documents*
+:bangbang: **This project has been moved to monorepo [ds-wizard/engine-tools](https://github.com/ds-wizard/engine-tools)** :bangbang:
+
+ds-wizard/mailer
 
 ## Dependencies
 
