@@ -9,7 +9,7 @@ Markdown==3.4.1
 MarkupSafe==2.1.1
 mdx-breakless-lists==1.0.1
 minio==7.1.10
-pathvalidate==2.5.0
+pathvalidate==2.5.1
 pdfrw==0.4
 psycopg2==2.9.3
 pyparsing==3.0.9
